@@ -18,7 +18,7 @@ imgname = tkFileDialog.askopenfilename()
 #filename = 'MaroonWindow_2.npy'
 
 #filename = 'WoodenFeet.npy'#'Final_middlevals_YellowWindow.npy'
-filename = 'TheWall.npy'
+filename = 'YellowWindow_100light.npy'
 
 # load image
 img_raw = cv2.imread(imgname)

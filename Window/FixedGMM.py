@@ -5,26 +5,23 @@ import cv2
 # Image Select
 import Tkinter, tkFileDialog
 
-# root = Tkinter.Tk()
-# root.withdraw()
-# imgname = tkFileDialog.askopenfilename()
-# img = cv2.imread(imgname)
+# Tester Code
+root = Tkinter.Tk()
+root.withdraw()
+imgname = tkFileDialog.askopenfilename()
+img = cv2.imread(imgname)
+
+GMMin = 'YellowGMM3_100.npz'
+thresh = .3#1e-4#1e-5
 
 
-#GMMin = 'Final_GoodData_GMM_BGR_3.npz'
-# GMMin = 'TheWallGMM_5.npz'
-# thresh = .08#1e-4#1e-5
 
-#GMMin = 'WoodenFeetGMM_3.npz'
-#thresh = .15#1e-4#1e-5
-
-
-# npzfile = np.load(GMMin)
-# k = npzfile['arr_0']
-# mean = npzfile['arr_1']
-# cov = npzfile['arr_2']
-# pi = npzfile['arr_3']
-# GMMargs = (thresh,k,mean,cov,pi)
+npzfile = np.load(GMMin)
+k = npzfile['arr_0']
+mean = npzfile['arr_1']
+cov = npzfile['arr_2']
+pi = npzfile['arr_3']
+GMMargs = (thresh,k,mean,cov,pi)
 
 
 
@@ -70,7 +67,10 @@ def GMM(img,thresh,k,mean,cov,pi):
 	p_sum = np.sum(p,axis = 0)/pmax
 	mask = cv2.inRange(p_sum,thresh,1)
 
-
+	kernel = np.ones((3,3),np.uint8)
+	#mask = cv2.dilate(mask,kernel,iterations=1)
+	#mask = cv2.erode(mask,kernel,iterations = 1)
+	
 	#pnorm = po/pmax#(po/np.max(po))
 
 	#mask = (pnorm>=thresh).astype('uint8')*255
@@ -80,8 +80,8 @@ def GMM(img,thresh,k,mean,cov,pi):
 
 
 
-# outmask = GMM(img,thresh,k,mean,cov,pi)
-# cv2.imshow('Raw',img)
-# cv2.imshow('mask',outmask)
-# cv2.waitKey()
-# cv2.destroyAllWindows()
+outmask = GMM(img,thresh,k,mean,cov,pi)
+cv2.imshow('Raw',img)
+cv2.imshow('mask',outmask)
+cv2.waitKey()
+cv2.destroyAllWindows()

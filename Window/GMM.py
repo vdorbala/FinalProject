@@ -14,8 +14,8 @@ from mpl_toolkits.mplot3d import axes3d, Axes3D
 #GMMout = 'TheWallGMM_5'
 
 
-filename = 'WoodenFeet.npy'
-GMMout = 'WoodenFeetGMM_3'
+filename = 'YellowWindow_100light.npy'
+GMMout = 'YellowGMM3_100'
 
 # load current training dataset
 BGR_set = np.load(filename)[0:3]
