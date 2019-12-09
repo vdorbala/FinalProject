@@ -1,23 +1,29 @@
 #!/usr/bin/env python
 
-
+#testttt2
 
 import numpy as np
 import rospy
 import cv2
 import os
 import Tkinter, tkFileDialog
-from time import time
+# from time import time #laptop version
+import time #upboard version
 import imutils
 from scipy.spatial.transform import Rotation as R
 
 from geometry_msgs.msg import Quaternion
+from geometry_msgs.msg import Point
 from sensor_msgs.msg import Image
+from std_msgs.msg import Empty
 from cv_bridge import CvBridge, CvBridgeError
 
 bridge = CvBridge()
 img_pub = rospy.Publisher("/window_mask",Image,queue_size=1)
 command_pub = rospy.Publisher("/moveto_cmd_body",Quaternion,queue_size=1)
+yaw_pub= rospy.Publisher('/yawto_cmd_body',Point,queue_size=1)
+pub_takeoff= rospy.Publisher('/bebop/takeoff',Empty,queue_size=1)
+pub_land= rospy.Publisher('bebop/land',Empty,queue_size=1)
 
 points_3d = np.float32([[0.0, 0.0, 0.0], [-390, -215, 0.0], [390, -215, 0.0], [420, 215, 0.0], [-420, 215, 0.0]]) 
 intrinsics = np.array([345.1095082193839, 344.513136922481, 315.6223488316934, 238.99403696680216]) #mm
@@ -43,6 +49,8 @@ vdes_ini = np.array([[0],[0],[1000]])
 
 #TODO:
 #add actual commands sent to controller. currently just calcs commands
+global_command=Quaternion()
+global_yawcommand=Point()
 
 
 #add confidence metric that increases when you find the same window over and over and lowers when you dont find shit
@@ -138,7 +146,13 @@ def applyCorners2Mask(mask,img):
 			if center is None or np.isnan(center).any() or np.isnan(inner_corners).any() or np.isnan(outer_corners).any():
 				return np.array([cx0,cy0]),np.zeros((4,2)),np.zeros((4,2))
 			else:
-				return center, inner_corners, outer_corners
+				H= np.abs(inner_corners[3,1]-inner_corners[0,1]) #height
+				W= np.abs(inner_corners[2,0]-inner_corners[1,0]) #width
+
+				if H/W < 4.:
+					return center, inner_corners, outer_corners
+				else:
+					return np.array([cx0,cy0]),np.zeros((4,2)),np.zeros((4,2))
 				
 def drawCorners( center, inner_corners, outer_corners,imgOG):
 
@@ -291,10 +305,13 @@ def GMM(img,thresh,k,mean,cov,pi):
 	return mask
 
 def img_callback(data):
+	global global_command
+	global global_yawcommand
 	img = bridge.imgmsg_to_cv2(data, "bgr8")
 
 
-	start_t=time()
+	# start_t=time()
+	start_t=time.time()
 	median = cv2.medianBlur(img,5)
 	# median = cv2.medianBlur(median,5)
 	mask = GMM(median,thresh,k,mean,cov,pi)
@@ -325,7 +342,7 @@ def img_callback(data):
 		#this also prevents yawing too much and losing sight
 		yaw_des= np.arctan(rw_inb[1]/rw_inb[0])
 
-		print("--- %s full operation ---" % (time() - start_t))
+		print("--- %s full operation ---" % (time.time() - start_t))
 
 		# mask= cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
 		mask=drawCorners(center, inner_corners, outer_corners,res)
@@ -337,9 +354,36 @@ def img_callback(data):
 		print 'yaw this much to look at window (deg) +ve left'
 		print yaw_des * (180/3.14)
 
-		if np.linalg.norm(rdes_inb)<.1:
+
+		mag= np.linalg.norm(rdes_inb/1000.)
+		if mag<.1:
+			pub_land.publish()
 			print('\n \n \n \n \n')
 			print('SHOOT BITCH!')
+			pub_land.publish()
+			print('\n \n \n \n \n')
+			print('SHOOT BITCH!')
+			pub_land.publish()
+			print('\n \n \n \n \n')
+			print('SHOOT BITCH!')
+			pub_land.publish()
+			print('\n \n \n \n \n')
+			print('SHOOT BITCH!')
+			pub_land.publish()
+
+		else:
+			if mag<.85:
+				global_command.x=.8*(rdes_inb[0]/1000.)
+				global_command.y=.8*(rdes_inb[1]/1000.)
+				global_command.z=.8*(rdes_inb[2]/1000.)
+				global_command.w=0
+				command_pub.publish(global_command)
+			else:
+				global_command.x=.5*(rdes_inb[0]/1000.)
+				global_command.y=.5*(rdes_inb[1]/1000.)
+				global_command.z=.5*(rdes_inb[2]/1000.)
+				global_command.w=1.
+				command_pub.publish(global_command)
 
 	else:
 		print 'Not enough corners found'
@@ -347,10 +391,19 @@ def img_callback(data):
 	# mask= cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
 	img_pub.publish(bridge.cv2_to_imgmsg(res, "bgr8"))
 
+
+
+
+
 def WindowNode():
 	rospy.init_node('Window_master', anonymous=True, log_level=rospy.WARN)
-	img_sub = rospy.Subscriber("/image_raw_throttle", Image, img_callback)
-	# img_sub = rospy.Subscriber("/image_raw", Image, img_callback)
+	# img_sub = rospy.Subscriber("/image_raw_throttle", Image, img_callback)
+	print('Taking off') #i think the node was too speedy or something, ignore this takeoff mess its just a hack for testing
+	time.sleep(5.)
+	pub_takeoff.publish()
+	print('huh?')
+
+	img_sub = rospy.Subscriber("/image_raw", Image, img_callback, buff_size=2**24, queue_size=1)
 	rospy.spin()
 
 if __name__ == '__main__':
