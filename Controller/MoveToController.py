@@ -111,6 +111,7 @@ def update_setpoint(data):
     global error
     global islanded
     global followthrough
+    global error_integral
 
 
     if islanded==False:
@@ -119,6 +120,7 @@ def update_setpoint(data):
 
             if data.w==1:
                 followthrough=True
+
 
 
             x = data.x # Positive fwd, body frame
@@ -140,6 +142,7 @@ def update_setpoint(data):
             # Update the setpoint in global coordinates below
             expected_pos_inertial= np.array([global_pos.position.x, global_pos.position.y, global_pos.position.z]) + command_vect_inertial
             error= np.linalg.norm(command_vect_inertial)
+            error_integral=0
 
             #publish it for RVIZ here if wanted
             # global_waypoint.x = expected_pos_inertial[0]
@@ -205,9 +208,9 @@ def moveto_body():
 
             if error<adaptive_threshold:
                 print '----------adaptive gains active------------'
-                move_array[0]=.12*move_vect_body[0] - .16*velocity_vect_body[0] + .0015*error_integral[0] #TUNE THIS
-                move_array[1]=.12*move_vect_body[1] - .16*velocity_vect_body[1] + .0015*error_integral[1]
-                move_array[2]=.63*move_vect_body[2] - .10*velocity_vect_body[2] + .0015*error_integral[2]
+                move_array[0]=.12*move_vect_body[0] - .25*velocity_vect_body[0] + .0015*error_integral[0] #TUNE THIS
+                move_array[1]=.12*move_vect_body[1] - .25*velocity_vect_body[1] + .0015*error_integral[1]
+                move_array[2]=.63*move_vect_body[2] - .15*velocity_vect_body[2] + .0015*error_integral[2]
             else:
                 move_array[0]=.08*move_vect_body[0] - .16*velocity_vect_body[0] + .001*error_integral[0] #TUNE THIS
                 move_array[1]=.08*move_vect_body[1] - .16*velocity_vect_body[1] + .001*error_integral[1]
@@ -228,10 +231,10 @@ def moveto_body():
             # print(' ')
             print('command is')
             print(np.array([x,y,z]))
-            # print('expected_pos_inertial')
-            # print(expected_pos_inertial)
-            # print('current_pos_inertial')
-            # print(current_pos_inertial)
+            print('expected_pos_inertial')
+            print(expected_pos_inertial)
+            print('current_pos_inertial')
+            print(current_pos_inertial)
 
 
 
