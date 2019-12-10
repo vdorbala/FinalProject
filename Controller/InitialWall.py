@@ -13,6 +13,7 @@ import time
 import numpy as np
 from geometry_msgs.msg import Quaternion
 from std_msgs.msg import Empty
+from nav_msgs.msg import Odometry
 
 pub_commands= rospy.Publisher('/moveto_cmd_body',Quaternion,queue_size=1)
 pub_takeoff= rospy.Publisher('/bebop/takeoff',Empty,queue_size=1)
@@ -47,7 +48,7 @@ def hardcoded_Wall():
     print('sending command 1: ',command)
     pub_commands.publish(command)
 
-    time.sleep(2)
+    time.sleep(6)
     #### THIS IS FOR INITIAL TESTING
     pub_land.publish()
 
@@ -60,7 +61,7 @@ def hardcoded_Wall():
     print('sending command 2 CROSS THE WALL: ',command)
     pub_commands.publish(command)
     # wait for it
-    time.sleep(2)
+    time.sleep(6)
 
 
     #### Move 3, Yaw right
@@ -72,7 +73,7 @@ def hardcoded_Wall():
     print('sending command 3, Yaw towards the window: ',command)
     pub_commands.publish(command)
     # wait for it
-    time.sleep(1)
+    time.sleep(5)
 
 
     #### Move 4, Move initially to center on the window (no latching, let the window controller take over)
@@ -84,11 +85,12 @@ def hardcoded_Wall():
     print('sending command 4, Initial centering: ',command)
     pub_commands.publish(command)
     # wait for it
-    time.sleep(1)
+    time.sleep(5)
+    pub_land.publish()   
 
     # Now handoff to the window controller
     #rospy.signal_shutdown('Node is finished, shut down')
-    
+
     #HOW TO USE THE CONTROLLER
     # Publish Quarternion messages to /moveto_cmd_body
     # where x,y,z is the position you want to move to relative to the body frame (in meters)
