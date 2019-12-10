@@ -7,6 +7,8 @@
 # w is how you indicate latching, if w=1 the command will be executed until completion and all else will be ignored
 # if w is anything else, the command is free to be updated mid execution
 
+#IF W IS NOT 0 or 1 IT WILL YAW THAT AMOUNT, and reject all other commands until its done
+
 #!!!!!!!!!!!!!!!! Takeoff command is not handled here
 
 
@@ -96,10 +98,15 @@ def odomlistener():
 def updateOdom(msg):
     global global_pos
     global global_vel
+    global global_current_yaw
+
     rospy.loginfo(msg.pose.pose)
     rospy.loginfo(msg.twist.twist)
     global_pos=msg.pose.pose
     global_vel=msg.twist.twist
+
+    q=msg.pose.pose.orientation
+    global_current_yaw = np.arctan2( 2*(q.w*q.z + q.x*q.y), 1-2*( q.y*q.y + q.z*q.z) )*(180/3.14156) #in deg
 
 def setlanded(msg):
     global islanded
@@ -172,6 +179,10 @@ def update_setpoint(data):
                     # Update the setpoint in global coordinates below
                     expected_pos_inertial= np.array([global_pos.position.x, global_pos.position.y, global_pos.position.z]) + command_vect_inertial
                     error= np.linalg.norm(command_vect_inertial)
+
+                    if error<.05: #if youre asked to just stop
+                        error=10
+
                     error_integral=0
 
                     #publish it for RVIZ here if wanted
@@ -202,10 +213,13 @@ def update_setpoint(data):
         else:
             print('FUCK YOU THATS TOO FAR')
     else:
+
+
         x=0
         y=0
         z=0
-        print('IGNORING DUE TO LANDED')
+        #print('IGNORING DUE TO LANDED')
+
 
 def moveto_body():
     global global_pos
@@ -324,7 +338,7 @@ def moveto_body():
 
                 yaw_error_integral=yaw_error_integral+yaw_error
 
-                command = .008*yaw_error + .00003*yaw_error_integral
+                command = .005*yaw_error + .00003*yaw_error_integral
 
                 print('yaw error: ',yaw_error,' yaw  error_integral: ',yaw_error_integral,'  cmd: ',command)
                 print('current: ',global_current_yaw,' expected: ', global_expected_yaw)
@@ -352,6 +366,14 @@ def moveto_body():
                 print 'finished yaw'
                 followthrough=False
                 yaw_error=0
+                global_command.linear.x=0
+                global_command.linear.y=0
+                global_command.linear.z=0
+                global_command.angular.x=0
+                global_command.angular.y=0
+                global_command.angular.z=0
+                pub_commands.publish(global_command)
+
 
     else:
         print('Landed')
