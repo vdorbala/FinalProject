@@ -45,7 +45,7 @@ global_expected_yaw=0
 global_current_yaw=0
 
 
-islanded=False
+islanded=True
 
 
 pub_commands= rospy.Publisher('bebop/cmd_vel',Twist,queue_size=1)
@@ -80,6 +80,7 @@ def odomlistener():
     rospy.Subscriber('/bebop/odom', Odometry, updateOdom)
     # Update land boolean to disable the controller if land is commanded
     rospy.Subscriber('/bebop/land',Empty, setlanded)
+    rospy.Subscriber('/bebop/takeoff',Empty, settakeoff)
     # when a body frame command is recieved, update the setpoint
     rospy.Subscriber('/moveto_cmd_body',Quaternion, update_setpoint)
 
@@ -108,27 +109,16 @@ def updateOdom(msg):
     q=msg.pose.pose.orientation
     global_current_yaw = np.arctan2( 2*(q.w*q.z + q.x*q.y), 1-2*( q.y*q.y + q.z*q.z) )*(180/3.14156) #in deg
 
+def settakeoff(msg):
+    global islanded
+    islanded=False
+    
+
 def setlanded(msg):
     global islanded
     islanded=True
-    pub_land.publish()
+    # pub_land.publish()
 
-    if islanded==False:
-        global_setpoint=data.z
-        global_expected_yaw=global_current_yaw+global_setpoint
-
-        if global_expected_yaw<-180:
-            global_expected_yaw=global_expected_yaw+360
-        if global_expected_yaw>180:
-            global_expected_yaw=global_expected_yaw-360
-
-
-        error=global_setpoint
-    else:
-        x=0
-        y=0
-        z=0
-        # print('IGNORING DUE TO LANDED')
 def update_setpoint(data):
     global global_pos
     global global_waypoint
@@ -260,7 +250,7 @@ def moveto_body():
                 print 'Finished latched command'
                 followthrough=False
 
-            if error>acceptable_error and islanded==False:
+            if error>acceptable_error and islanded==False and expected_pos_inertial[2]>.2:
 
                 
                 current_pos_inertial=np.array([global_pos.position.x, global_pos.position.y, global_pos.position.z])
@@ -385,8 +375,8 @@ def moveto_body():
 
     else:
         print('Landed')
-        pub_land.publish()
-        islanded=True
+        # pub_land.publish()
+        # islanded=True
 
 
 
