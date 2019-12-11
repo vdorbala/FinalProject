@@ -29,7 +29,7 @@ points_3d = np.float32([[0.0, 0.0, 0.0], [-390, -215, 0.0], [390, -215, 0.0], [4
 intrinsics = np.array([345.1095082193839, 344.513136922481, 315.6223488316934, 238.99403696680216]) #mm
 dist_coeff = np.array([-0.3232637683425793, 0.045757813401817116, 0.0024085161807053074, 0.003826902574202108])
 K = np.float64([ [intrinsics[0], 0.0, intrinsics[2]], [0.0, intrinsics[1], intrinsics[3]], [0.0, 0.0, 1.0]])
-GMMin = 'YellowGMM3_100.npz'
+GMMin = './YellowGMM3_100.npz'
 thresh = .3#1e-4#1e-5
 
 npzfile = np.load(GMMin)
@@ -68,15 +68,7 @@ def hardcoded_Wall():
 
     command=Quaternion()
 
-    print('Taking off') #i think the node was too speedy or something, ignore this takeoff mess its just a hack for testing
-    pub_takeoff.publish()
-    # print('huh?')
-    # time.sleep(5.)
-    # print('Taking off try 2')
-    # pub_takeoff.publish()
-    # print('huh?')
-    # time.sleep(5.)
-    time.sleep(4.5)
+    
 
     #### Move 1: Line up with Wall 
     # zcmd = 1.7 - global_pos.position.z # meters, global to body
@@ -142,6 +134,7 @@ def hardcoded_Wall():
     # pub_land.publish()   
 
     global_wallisdone=True
+
 
     # Now handoff to the window controller
     #rospy.signal_shutdown('Node is finished, shut down')
@@ -522,11 +515,19 @@ def WindowNode():
 	# pub_takeoff.publish()
 	# print('huh?')
 
-	img_sub = rospy.Subscriber("/image_raw", Image, img_callback, buff_size=2**24, queue_size=1)
-
-
+	
+	print('Taking off') #i think the node was too speedy or something, ignore this takeoff mess its just a hack for testing
+	pub_takeoff.publish()
+	# print('huh?')
+	# time.sleep(5.)
+	# print('Taking off try 2')
+	# pub_takeoff.publish()
+	# print('huh?')
+	# time.sleep(5.)
+	time.sleep(4.5)
 	hardcoded_Wall()
 
+	img_sub = rospy.Subscriber("/image_raw", Image, img_callback, buff_size=2**24, queue_size=1)
 	rospy.spin()
 
 if __name__ == '__main__':
