@@ -90,7 +90,7 @@ def hardcoded_Wall():
 
 
     #### Move 2, Cross the Wall, go fwd
-    command.x = 2
+    command.x = 1.8
     command.y = 0
     command.z = 0
     command.w = 1 # Latching enabled
@@ -463,8 +463,8 @@ def img_callback(data):
 			else:
 				mag= np.linalg.norm(rdes_inb/1000.)
 
-				global_lastmags[0:4]=global_lastmags[1:5]
-				global_lastmags[4]=mag
+				global_lastmags[0,0:4]=global_lastmags[0,1:5]
+				global_lastmags[0,4]=mag
 
 
 				
@@ -517,14 +517,14 @@ def WindowNode():
 
 	
 	print('Taking off') #i think the node was too speedy or something, ignore this takeoff mess its just a hack for testing
-	pub_takeoff.publish()
-	# print('huh?')
-	# time.sleep(5.)
-	# print('Taking off try 2')
 	# pub_takeoff.publish()
-	# print('huh?')
-	# time.sleep(5.)
-	time.sleep(4.5)
+	print('huh?')
+	time.sleep(8.)
+	print('Taking off try 2')
+	pub_takeoff.publish()
+	print('huh?')
+	time.sleep(6.)
+	# time.sleep(4.5)
 	hardcoded_Wall()
 
 	img_sub = rospy.Subscriber("/image_raw", Image, img_callback, buff_size=2**24, queue_size=1)
