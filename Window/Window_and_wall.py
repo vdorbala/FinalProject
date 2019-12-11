@@ -44,7 +44,12 @@ bRc = np.transpose(cRb)
 
 #TUNABLE PARAM:############################################################################
 #want to be 1 meter in front of window before shooting the shot so
-vdes_ini = np.array([[0],[0],[1000]])
+# vdes_ini = np.array([[0],[0],[1000]])
+
+#little hax for better line up
+#ask for slightly left since approaching from right
+#ask for slightly low since camera on bottom of quad
+vdes_ini = np.array([[-40],[-40],[1000]])
 ######################################################################################
 
 #TODO:
@@ -452,7 +457,7 @@ def img_callback(data):
 
 		if global_wallisdone:
 
-			if np.abs(yaw_des)>15:
+			if np.abs(yaw_des)>8:
 				#yaw only
 				global_command.x=0
 				global_command.y=0
@@ -466,9 +471,11 @@ def img_callback(data):
 				global_lastmags[0,0:4]=global_lastmags[0,1:5]
 				global_lastmags[0,4]=mag
 
+				print('running avg:',np.linalg.norm(global_lastmags))
+
 
 				
-				if np.linalg.norm(global_lastmags)<.1:
+				if np.linalg.norm(global_lastmags)<.12:
 					pub_land.publish()
 					print('\n \n \n \n \n')
 					print('SHOOT BITCH!')
