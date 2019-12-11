@@ -48,12 +48,16 @@ def hardcoded_Wall():
     print('sending command 1: ',command)
     pub_commands.publish(command)
 
-    time.sleep(6)
+    time.sleep(5)
     #### THIS IS FOR INITIAL TESTING
-    pub_land.publish()
+    # pub_land.publish()
+
+
+    
+
 
     #### Move 2, Cross the Wall, go fwd
-    command.x = 1.5
+    command.x = 2
     command.y = 0
     command.z = 0
     command.w = 1 # Latching enabled
@@ -61,7 +65,15 @@ def hardcoded_Wall():
     print('sending command 2 CROSS THE WALL: ',command)
     pub_commands.publish(command)
     # wait for it
-    time.sleep(6)
+    time.sleep(8)
+
+    command.x = 0
+    command.y = 0 # 0.2 meters right
+    command.z = 0
+    command.w = 0 # Latching disabled
+    # SEND IT
+    print('sending command 000: ',command)
+    pub_commands.publish(command)
 
 
     #### Move 3, Yaw right
@@ -73,7 +85,7 @@ def hardcoded_Wall():
     print('sending command 3, Yaw towards the window: ',command)
     pub_commands.publish(command)
     # wait for it
-    time.sleep(5)
+    time.sleep(4)
 
 
     #### Move 4, Move initially to center on the window (no latching, let the window controller take over)

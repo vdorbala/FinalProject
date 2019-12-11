@@ -128,7 +128,7 @@ def setlanded(msg):
         x=0
         y=0
         z=0
-        print('IGNORING DUE TO LANDED')
+        # print('IGNORING DUE TO LANDED')
 def update_setpoint(data):
     global global_pos
     global global_waypoint
@@ -198,6 +198,9 @@ def update_setpoint(data):
                     #okay we yaw only
                     followthrough=True
 
+                    print('\n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n') #clears the screen basically
+                    print('Setpoint Updated (body frame): ',np.array([x,y,z,data.w]))
+
                     global_expected_yaw=global_current_yaw+data.w
 
                     if global_expected_yaw<-180:
@@ -218,7 +221,7 @@ def update_setpoint(data):
         x=0
         y=0
         z=0
-        #print('IGNORING DUE TO LANDED')
+        print('IGNORING DUE TO LANDED')
 
 
 def moveto_body():
@@ -247,9 +250,15 @@ def moveto_body():
 
     if islanded==False:
         
+        
 
         if yaw_error==0:
             print('Running right now with error: ',error)
+
+            error= np.linalg.norm(np.array([global_pos.position.x, global_pos.position.y, global_pos.position.z])-expected_pos_inertial)
+            if error<acceptable_error and followthrough==True:
+                print 'Finished latched command'
+                followthrough=False
 
             if error>acceptable_error and islanded==False:
 
@@ -277,12 +286,12 @@ def moveto_body():
 
                 if error<adaptive_threshold:
                     print '----------adaptive gains active------------'
-                    move_array[0]=.12*move_vect_body[0] - .25*velocity_vect_body[0] + .0015*error_integral[0] #TUNE THIS
-                    move_array[1]=.12*move_vect_body[1] - .25*velocity_vect_body[1] + .0015*error_integral[1]
+                    move_array[0]=.12*move_vect_body[0] - .32*velocity_vect_body[0] + .0015*error_integral[0] #TUNE THIS
+                    move_array[1]=.12*move_vect_body[1] - .32*velocity_vect_body[1] + .0015*error_integral[1]
                     move_array[2]=.63*move_vect_body[2] - .15*velocity_vect_body[2] + .0015*error_integral[2]
                 else:
-                    move_array[0]=.08*move_vect_body[0] - .16*velocity_vect_body[0] + .001*error_integral[0] #TUNE THIS
-                    move_array[1]=.08*move_vect_body[1] - .16*velocity_vect_body[1] + .001*error_integral[1]
+                    move_array[0]=.08*move_vect_body[0] - .19*velocity_vect_body[0] + .0007*error_integral[0] #TUNE THIS
+                    move_array[1]=.08*move_vect_body[1] - .19*velocity_vect_body[1] + .0007*error_integral[1]
                     move_array[2]=.53*move_vect_body[2] - .10*velocity_vect_body[2] + .001*error_integral[2]
 
                 
@@ -317,10 +326,9 @@ def moveto_body():
 
 
                 pub_commands.publish(global_command)
-                error= np.linalg.norm(np.array([global_pos.position.x, global_pos.position.y, global_pos.position.z])-expected_pos_inertial)
+                # error= np.linalg.norm(np.array([global_pos.position.x, global_pos.position.y, global_pos.position.z])-expected_pos_inertial)
 
-                if error<acceptable_error and followthrough==True:
-                    followthrough=False
+
 
         else:
             print('YAW Running right now with error: ',yaw_error)
