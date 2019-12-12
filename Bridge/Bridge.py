@@ -491,23 +491,29 @@ def move_appropriately(bridge_description):
 		#marker_loc is x right, y forward
 		#shoot the bridge here!
 		overshoot=.3 #m
+
+
+		#ahhhh, i am an idiot, overshoot is done like dis:
+		mag= np.linalg.norm(marker_loc)
+		shooties = (marker_loc/mag)*(mag+overshoot) #fucking duh
+
 		# moveto_body(marker_loc[1]+overshoot,-marker_loc[0]-overshoot,0) #body x is forward, y is left
-		#stop moving first
+		#stop moving first (sometimes its still drifting and shit)
 		global_command.x = 0
 		global_command.y = 0
 		global_command.z = 0
-		global_command.w = 0 # Latching on, we shooting shit
+		global_command.w = 0 # 
 		# SEND IT
 		print('sending stop command: ',global_command)
 		command_pub.publish(global_command)
 
-		global_command.x = marker_loc[1]+overshoot
-		global_command.y = -marker_loc[0]-overshoot
+		global_command.x = shooties
+		global_command.y = -1*shooties
 		global_command.z = 0
 		global_command.w = 1 # Latching on, we shooting shit
 		# SEND IT
 		print('sending SHOOT command: ',global_command)
-		command_pub.publish(global_command) #move up to see something
+		command_pub.publish(global_command) #bangers
 		crossed=True
 
 	else:
