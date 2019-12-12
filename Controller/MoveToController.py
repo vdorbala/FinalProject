@@ -276,9 +276,10 @@ def moveto_body():
 
                 if error<adaptive_threshold:
                     print '----------adaptive gains active------------'
-                    move_array[0]=.12*move_vect_body[0] - .32*velocity_vect_body[0] + .0015*error_integral[0] #TUNE THIS
-                    move_array[1]=.12*move_vect_body[1] - .32*velocity_vect_body[1] + .0015*error_integral[1]
-                    move_array[2]=.63*move_vect_body[2] - .15*velocity_vect_body[2] + .0015*error_integral[2]
+                    
+                    move_array[0]=.14*move_vect_body[0] - .22*velocity_vect_body[0] + .0011*error_integral[0] #TUNE THIS
+                    move_array[1]=.14*move_vect_body[1] - .22*velocity_vect_body[1] + .0011*error_integral[1]
+                    move_array[2]=.63*move_vect_body[2] - .10*velocity_vect_body[2] + .0011*error_integral[2]
                 else:
                     move_array[0]=.08*move_vect_body[0] - .19*velocity_vect_body[0] + .0007*error_integral[0] #TUNE THIS
                     move_array[1]=.08*move_vect_body[1] - .19*velocity_vect_body[1] + .0007*error_integral[1]
@@ -288,15 +289,12 @@ def moveto_body():
                 print('error-------------------------------------------------------------------------')
                 print(error)
                 #timedelay= .1#TUNE THIS
-                # print('move vect')
-                # print(move_array)
-                # print('move_vect_body')
-                # print(move_vect_body)
-                # print('velocity_vect_body')
-                # print(velocity_vect_body)
-                # print('error_integral')
-                # print(error_integral)
-                # print(' ')
+                print('move vect: ', move_array)
+                print(' ')
+                print('move_vect_body: ',move_vect_body)
+                print('velocity: ',velocity_vect_body)
+                print('error_integral: ',error_integral)
+                print(' ')
                 print('command is')
                 print(np.array([x,y,z]))
                 print('expected_pos_inertial')
