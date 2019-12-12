@@ -3,23 +3,30 @@
 import cv2 
 import numpy as np
 import imutils
+import time
 from matplotlib import pyplot as plt
 from sensor_msgs.msg import Image
 from nav_msgs.msg import Odometry # We need this message type to read position and attitude from Bebop nav_msgs/Odometry
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Point
+from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Quaternion
 from std_msgs.msg import Empty
 from cv_bridge import CvBridge, CvBridgeError
 
 import rospy
 # from multiprocessing import Pool,Process, Queue
 outt=Point()
-global_pos= Twist()#np.array([0.,0.,0.])
+global_pos= Pose()#np.array([0.,0.,0.])
 global_vel=Twist()
 global_bridge_description=np.array([0.,0.,0.])
 global_last_good_bridge=np.array([0.,0.,0.])
 global_last_iffy_bridge=np.array([0.,0.,0.])
 global_last_good_pos= Twist()
+
+first_got=False
+crossed=False
+new_bridge=False
 
 global_command=Quaternion()
 
@@ -88,7 +95,7 @@ def search_for_rects(max_contour,cnts):
 				if np.linalg.norm(np.array([cx-cx0,cy-cy0]))< 1.2*equi_radius: #if its within the "bridge" body
 
 					
-					hull_area = cv2.contourArea(cv2.convexHull(c))
+					hull_area = cv2.contourArea(cv2.convexHull(c))+.0000000001
 					solidity = float(M['m00'])/hull_area
 					# print 'solidity: ',solidity
 					if solidity>.8:
@@ -125,7 +132,7 @@ def search_for_rects(max_contour,cnts):
 def find_bridge(image_raw):
 
 
-	print '--------------'
+	# print '--------------'
 
 	cannyval=int(np.amin(image_raw.shape)*.12)#.35)#.31)
 	# print cannyval
@@ -142,7 +149,7 @@ def find_bridge(image_raw):
 
 
 
-	mask2=double_threshold(image_raw,60,60,[215,260],[160,260])
+	mask2=double_threshold(image_raw,60,80,[200,260],[180,260])
 	mask= cv2.bitwise_and(mask,mask2)
 
 	# plt.cla()
@@ -219,27 +226,30 @@ def find_bridge(image_raw):
 
 
 	#for debigging
+	angle = None
 
-			
+	if first_hole_angle is not None:
 
-	# if got_bridge or (first_hole_angle is not None):
+		angle=(first_hole_angle+90) * 3.14/180	
 
-	# 	print 'Got bridge'
+	if got_bridge or (first_hole_angle is not None):
+
+		# print 'Got bridge'
 		
-	# 	angle=(first_hole_angle+90) * 3.14/180
+		angle=(first_hole_angle+90) * 3.14/180
 
-	# 	x2 = int(round(cx0 + 1000* np.cos(angle)))
-	# 	y2 = int(round(cy0 + 1000 * np.sin(angle)))
-	# 	x1 = int(round(cx0 - 1000* np.cos(angle)))
-	# 	y1 = int(round(cy0 - 1000 * np.sin(angle) ))
+		x2 = int(round(cx0 + 1000* np.cos(angle)))
+		y2 = int(round(cy0 + 1000 * np.sin(angle)))
+		x1 = int(round(cx0 - 1000* np.cos(angle)))
+		y1 = int(round(cy0 - 1000 * np.sin(angle) ))
 
-	# 	if got_bridge==True:
-	# 		cv2.line(image_raw,(x1,y1),(x2,y2),(255,255,0),5)
-	# 		cv2.circle(image_raw,(int(cx0),int(cy0)),3,(255,0,0),-1)
-	# 	else:
-	# 		print 'NOT SUPER SURE'
-	# 		cv2.line(image_raw,(x1,y1),(x2,y2),(0,255,0),1)
-	# 		cv2.circle(image_raw,(int(cx0),int(cy0)),3,(255,0,0),-1)
+		if got_bridge==True:
+			cv2.line(mask,(x1,y1),(x2,y2),(255,255,0),5)
+			cv2.circle(mask,(int(cx0),int(cy0)),3,(255,0,0),-1)
+		else:
+			# print 'NOT SUPER SURE'
+			cv2.line(mask,(x1,y1),(x2,y2),(0,255,0),1)
+			cv2.circle(mask,(int(cx0),int(cy0)),3,(255,0,0),-1)
 
 		# cv2.imshow('image_raw',image_raw)
 	
@@ -252,11 +262,16 @@ def find_bridge(image_raw):
 	# plt.pause(.005)
 	
 
-	return got_bridge, image_raw, cx0, cy0, first_hole_angle
+	return got_bridge, mask, cx0, cy0, angle
 
 def img_callback(data):
 	global global_bridge_description
 	global frames_checked
+	global global_last_iffy_bridge
+	global first_got
+	global new_bridge
+
+	# print 'recieving images'
 
 	frames_checked=frames_checked+1
 
@@ -275,48 +290,54 @@ def img_callback(data):
 	#going to try to validate its a good bridge here
 	if gotit or (angle is not None):
 
-		print 'Got a bridge'
+		if y<120: #if you think theres a bridge behind you, there isnt.
+		
+			new_bridge=True
 
-		# x2 = int(round(x + 1000* np.cos(angle)))
-		# y2 = int(round(y + 1000 * np.sin(angle)))
-		# x1 = int(round(x - 1000* np.cos(angle)))
-		# y1 = int(round(y - 1000 * np.sin(angle) ))
+			# x2 = int(round(x + 1000* np.cos(angle)))
+			# y2 = int(round(y + 1000 * np.sin(angle)))
+			# x1 = int(round(x - 1000* np.cos(angle)))
+			# y1 = int(round(y - 1000 * np.sin(angle) ))
+			if first_got==False:
+				first_got=True
+				global_last_iffy_bridge[0]= int(x*(1/imgScale))+.5 #horizontal like
+				global_last_iffy_bridge[1]=int(y*(1/imgScale))+.5
+				global_last_iffy_bridge[2]=angle
 
-		if got_bridge==True:
-			print 'damn sure'
-			#then found at least 2 holes that are good
-			# cv2.line(imgbgr,(x1,y1),(x2,y2),(255,255,0),5)
-			# cv2.circle(imgbgr,(int(cx0),int(cy0)),3,(255,0,0),-1)
-		else:
-			print 'NOT SUPER SURE'
-			#found only 1
-			# cv2.line(imgbgr,(x1,y1),(x2,y2),(0,255,0),1)
-			# cv2.circle(imgbgr,(int(cx0),int(cy0)),3,(255,0,0),-1)
+			if gotit==True:
+				print 'Got a new bridge  ','damn sure'
+				#then found at least 2 holes that are good
+				# cv2.line(imgbgr,(x1,y1),(x2,y2),(255,255,0),5)
+				# cv2.circle(imgbgr,(int(cx0),int(cy0)),3,(255,0,0),-1)
+				global_bridge_description[0]=int(x*(1/imgScale)) #horizontal like
+				global_bridge_description[1]=int(y*(1/imgScale))
+				global_bridge_description[2]=angle #radians yo
+			else:
+				print 'Got a new bridge  ','NOT SUPER SURE'
+				#if not super sure then iffy .5 solution
+				global_bridge_description[0]=int(x*(1/imgScale))+.5 #horizontal like
+				global_bridge_description[1]=int(y*(1/imgScale))+.5
+				global_bridge_description[2]=angle #radians yo
+				#found only 1
+				# cv2.line(imgbgr,(x1,y1),(x2,y2),(0,255,0),1)
+				# cv2.circle(imgbgr,(int(cx0),int(cy0)),3,(255,0,0),-1)
 
 	# plt.cla()
 	# plt.imshow(imgbgr)
 	# plt.pause(.005)
 
 
-	if gotit:
-		global_bridge_description[0]=int(x*(1/imgScale)) #horizontal like
-		global_bridge_description[1]=int(y*(1/imgScale))
-		global_bridge_description[2]=angle #radians yo
-	else:
-		#if not super sure then iffy .5 solution
-		global_bridge_description[0]=int(x*(1/imgScale))+.5 #horizontal like
-		global_bridge_description[1]=int(y*(1/imgScale))+.5
-		global_bridge_description[2]=angle #radians yo
 
-	# img_center = cv2.cvtColor(img_center,cv2.COLOR_GRAY2BGR)
-	# img_pub.publish(bridge.cv2_to_imgmsg(img_center, "bgr8"))
+
+	img_center = cv2.cvtColor(img_center,cv2.COLOR_GRAY2BGR)
+	img_pub.publish(bridge.cv2_to_imgmsg(img_center, "bgr8"))
 	# bridge_pub.publish(outt)
 
 def odom_callback(msg):
 	global global_pos
 	global global_vel
-	rospy.loginfo(msg.pose.pose)
-	rospy.loginfo(msg.twist.twist)
+	# rospy.loginfo(msg.pose.pose)
+	# rospy.loginfo(msg.twist.twist)
 
 	#global_pos=np.array([msg.pose.pose.position.x,msg.pose.pose.position.y,msg.pose.pose.position.z])
 	#print(global_pos)
@@ -332,97 +353,154 @@ def consider_bridge():
 	global global_pos
 
 	global frames_checked
+	global crossed
+	global new_bridge
 	
+	if crossed==False:
+		if global_last_iffy_bridge.all()==0:
+			print('Havent found shit')
+			if global_pos.position.z<2.0:
+				global_command.x = 0
+				global_command.y = 0 
+				global_command.z = .35
+				global_command.w = 0 # Latching disabled, if we see something sooner might as well go then
+				# SEND IT
+				print('sending command up: ',global_command)
+				command_pub.publish(global_command) #move up to see something
+			else:				
+				print('im high up and dont see shit')
 
-	if global_last_iffy_bridge.all()==0:
-		print('Havent found shit')
-		if global_pos.position.z<2.6:
-			global_command.x = 0
-			global_command.y = 0 
-			global_command.z = .35
-			global_command.w = 0 # Latching disabled, if we see something sooner might as well go then
-			# SEND IT
-			print('sending command up: ',global_command)
-			command_pub.publish(global_command) #move up to see something
-		else:
-			pub_land.publish() #edge case shit here
+				hardcoded_angle= 45 #degrees from facing forward, positive is left
+				hardcoded_angle= hardcoded_angle*(3.14/180)
 
-	else: #we something at some point
-		if global_bridge_description.all()==0:
-			#we dont see shit rn
+				global_command.x = .21*np.cos(hardcoded_angle)
+				global_command.y = .21*np.sin(hardcoded_angle)
+				global_command.z = 0
+				global_command.w = 0 # Latching disabled, if we see something sooner might as well go then
+				# SEND IT
+				print('sending command up: ',global_command)
+				command_pub.publish(global_command)
 
-			#check counter, if its been a while then cry and think about doing a sketchyboiii
-			if frames_checked>30:
-				print('I WOULD DO SKETCHY SHIT NOW')
-				pub_land.publish()
+				# pub_land.publish() #edge case shit here
 
-		else:
+		else: #we something at some point
+			if global_bridge_description.all()==0:
+				#we dont see shit rn
 
-			if global_bridge_description[0]%1 == 0 and global_bridge_description[1]%1 == 0: 
-				#the detecter is sure as shit about this one
-				global_last_good_bridge=global_bridge_description
-				global_last_good_pos=global_pos
+				#check counter, if its been a while then cry and think about doing a sketchyboiii
+				if frames_checked>30:
+					print('I WOULD DO SKETCHY SHIT NOW')
+					pub_land.publish()
 
-				print('DIS DAT DANKY DANKY')
-				move_appropriately(global_bridge_decription)
+			else:
 
-			if global_bridge_description[0]%1 != 0 and global_bridge_description[1]%1 != 0:
+				if new_bridge:
+					new_bridge=False
 
-				#check if its close to the last one, and update
-				if np.linalg.norm(global_last_iffy_bridge[:2]-(global_bridge_description[:2]-.5))<4  and np.abs(global_last_iffy_bridge[2]-global_bridge_description[2])<.1:
-					print('DIS DAT SKETCHY WETCHY but ill take it')
+					if global_bridge_description[0]%1 == 0 and global_bridge_description[1]%1 == 0: 
+						#the detecter is sure as shit about this one
+						global_last_good_bridge=global_bridge_description
+						global_last_good_pos=global_pos
 
-					global_last_iffy_bridge=global_bridge_decription
-					#update global good bridge?
-					move_appropriately(global_bridge_decription)
+						print('DIS DAT DANKY DANKY')
+						move_appropriately(global_bridge_description)
 
-				else:
-					global_last_iffy_bridge=global_bridge_decription
+					if global_bridge_description[0]%1 != 0 and global_bridge_description[1]%1 != 0:
+
+						#check if its close to the last one, and update
+						if np.linalg.norm(global_last_iffy_bridge[:2]-(global_bridge_description[:2]-.5))<4  and np.abs(global_last_iffy_bridge[2]-global_bridge_description[2])<.1:
+							print('DIS DAT SKETCHY WETCHY but ill take it')
+
+							global_last_iffy_bridge=global_bridge_description
+							#update global good bridge?
+							move_appropriately(global_bridge_description)
+
+						else:
+							global_last_iffy_bridge=global_bridge_description
+	else:
+		print 'I already crossed'
 
 
 def find_bridge_main():
 	rospy.init_node('find_bridge', anonymous=True)
 	# img_sub = rospy.Subscriber("/duo3d/left/image_rect_throttle", Image, img_callback,queue_size=1,buff_size=52428800)
+	
+
+	#COMMENT OUT THIS SECTION HERE WHEN NOT TESTING!!!
+	pub_takeoff= rospy.Publisher('/bebop/takeoff',Empty,queue_size=1)
+	print('Taking off') #i think the node was too speedy or something, ignore this takeoff mess its just a hack for testing
+	# pub_takeoff.publish()
+	print('waiting?')
+	time.sleep(5.)
+	print('Taking off try 1')
+	pub_takeoff.publish()
+	print('huh?')
+	time.sleep(6.)
+
+
 	img_sub = rospy.Subscriber("/duo3d/left/image_rect", Image, img_callback,queue_size=1,buff_size=52428800)
 	rospy.Subscriber('/bebop/odom', Odometry, odom_callback)
 	# rospy.spin()
 
-	telemrate = 10
+	telemrate = 3
 	rate = rospy.Rate(telemrate)
 	# spin() simply keeps python from exiting until this node is stopped
 	while not rospy.is_shutdown():
 		consider_bridge()
 		rate.sleep()
 
-def move_appropriately(bridge_decription):
+def move_appropriately(bridge_description):
 	global global_pos
 	global global_command
 	global frames_checked
+	global crossed
 	frames_checked=0
+
+	# global_marker_center=bridge_description
 	#keyboard w 17.5
 
 	#fit vertically in frame at 8in z
 	#fit horizontally 6
 	FOVx=56 #deg
 	FOVy=50
-
 	
 
 	C=np.array([160,120,0])
-	A=np.array([global_marker_center[0],global_marker_center[1],0])
-	B=np.array([A[0] + 30* np.cos(global_marker_center[2]),A[1] + 30 * np.sin(global_marker_center[2]),0])
+	A=np.array([bridge_description[0],bridge_description[1],0])
+	B=np.array([A[0] + 30* np.cos(bridge_description[2]),A[1] + 30 * np.sin(bridge_description[2]),0])
 
 	dist=np.linalg.norm(np.cross(C-A,B-A))/np.linalg.norm(B-A)
+
+	dist_real= np.tan(((dist/140)*53)*np.pi/180)*global_pos.position.z
 	
-	if dist<8:
-		vector2bridge= np.array([160,120])-global_marker_center[:2]# if 0,0 in top left corner
-		deg_offsets= (vector2bridge/(np.array([160,120]))) * np.array([FOVx,FOVy])
+	print 'dist_real: ',dist_real
+	print 'bridge is: ',bridge_description
+
+
+	if bridge_description[0]%1 != 0 and bridge_description[1]%1 != 0:
+		dist_real=.5
+
+
+	if dist_real<.06:
+
+		vector2bridge= np.array([A[0]-160,120-A[1]])#-A[:2]# if 0,0 in top left corner
+		
+		print 'vector2bridge: ',vector2bridge
+		deg_offsets= (vector2bridge/(2*np.array([160,120]))) * np.array([FOVx,FOVy])
 		marker_loc=np.tan(deg_offsets*np.pi/180)*global_pos.position.z #marker loc relative to you 
 		#marker_loc is x right, y forward
-
 		#shoot the bridge here!
-		overshoot=.6 #m
+		overshoot=.3 #m
 		# moveto_body(marker_loc[1]+overshoot,-marker_loc[0]-overshoot,0) #body x is forward, y is left
+		#stop moving first
+		global_command.x = 0
+		global_command.y = 0
+		global_command.z = 0
+		global_command.w = 0 # Latching on, we shooting shit
+		# SEND IT
+		print('sending SHOOT command: ',global_command)
+		command_pub.publish(global_command)
+
 		global_command.x = marker_loc[1]+overshoot
 		global_command.y = -marker_loc[0]-overshoot
 		global_command.z = 0
@@ -430,22 +508,51 @@ def move_appropriately(bridge_decription):
 		# SEND IT
 		print('sending SHOOT command: ',global_command)
 		command_pub.publish(global_command) #move up to see something
+		crossed=True
+
 	else:
+		factor=.7
+		if dist_real<.3:
+			factor=.9
 
-		if global_marker_center[2]> (3.14/2):
-			angle=global_marker_center[2]-3.14 #this angle is +ve CW!!!!
+		if bridge_description[2]> (3.14/2):
+			angle=bridge_description[2]-3.14 #this angle is +ve CW!!!!
 		else:
-			angle=global_marker_center[2]
+			angle=bridge_description[2]
 
-		dirvec= np.array([dist*np.sin(angle), dist*np.cos(angle)])
-		deg_offsets= (dirvec/(np.array([160,120]))) * np.array([FOVx,FOVy])
-		waypoint_loc= np.tan(deg_offsets*np.pi/180)*global_pos.position.z
+		#alright fuck it, picking the closest point on the line is weird
+		#instead ill go to a point on the line, that is some dist meter away from the bridge, that is closer to me
+		vector2bridge= np.array([A[0]-160,120-A[1]])#-A[:2]# if 0,0 in top left corner
+		print 'vector2bridge: ',vector2bridge
+		deg_offsets= (vector2bridge/(2*np.array([160,120]))) * np.array([FOVx,FOVy])
+		marker_loc=np.tan(deg_offsets*np.pi/180)*global_pos.position.z
+
+		distfrombridge=.2 #meters
+		#point 1
+		P1 = np.array([marker_loc[0]+distfrombridge*np.cos(angle),marker_loc[1]-distfrombridge*np.sin(angle)])
+		P2 = np.array([marker_loc[0]-distfrombridge*np.cos(angle),marker_loc[1]+distfrombridge*np.sin(angle)])
+		M1=np.linalg.norm(P1)
+		M2=np.linalg.norm(P2)
+
+		print 'marker_loc: ',marker_loc
+		print 'P1: ',P1
+		print 'P2: ',P2
+
+		if M1<M2:
+			waypoint_loc=P1
+		else:
+			waypoint_loc=P2
+
+		#dirvec= np.array([dist*np.sin(angle), dist*np.cos(angle)])
+		# print 'dirvec: ',dirvec
+		# deg_offsets= (dirvec/(2*np.array([160,120]))) * np.array([FOVx,FOVy])
+		# waypoint_loc= np.tan(deg_offsets*np.pi/180)*global_pos.position.z
 
 		#moveto_body(.5*marker_loc[1],-.5*marker_loc[0],0)
-		global_command.x = .5*marker_loc[1]
-		global_command.y = -.5*marker_loc[0]
+		global_command.x = factor*waypoint_loc[1]
+		global_command.y = -1*factor*waypoint_loc[0]
 		global_command.z = 0
-		global_command.w = 0 # Latching of, we just lining up here
+		global_command.w = 0 # Latching cuz we think way faster than the quad moves, 
 		# SEND IT
 		print('sending lineup command: ',global_command)
 		command_pub.publish(global_command)
