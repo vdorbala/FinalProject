@@ -50,6 +50,12 @@ bRc = np.transpose(cRb)
 #ask for slightly left since approaching from right
 #ask for slightly low since camera on bottom of quad
 vdes_ini = np.array([[-40],[-40],[1000]])
+
+pause_active=False
+pauselength=2.4 #seconds
+
+pause_start_time=0
+
 ######################################################################################
 
 #TODO:
@@ -57,6 +63,8 @@ vdes_ini = np.array([[-40],[-40],[1000]])
 global_command=Quaternion()
 
 global_wallisdone=False
+
+global_first_window_move=True
 
 global_lastmags = np.ones((1,5))*20000
 
@@ -404,7 +412,9 @@ def img_callback(data):
 	global global_command
 	global global_wallisdone
 	global global_lastmags
-
+	global pause_active
+	global pauselength
+	global pause_start_time
 
 
 
@@ -457,52 +467,93 @@ def img_callback(data):
 
 		if global_wallisdone:
 
-			if np.abs(yaw_des)>8:
-				#yaw only
-				global_command.x=0
-				global_command.y=0
-				global_command.z=0
-				global_command.w=yaw_des
+			if global_first_window_move:
+				#if its the first window move you wanna fly and then do a good yaw,
+
+				print('FIRST GO')
+				#fly:
+				global_command.x=.9*(rdes_inb[0]/1000.)
+				global_command.y=.9*(rdes_inb[1]/1000.)
+				global_command.z=.9*(rdes_inb[2]/1000.)
+				global_command.w=1.
 				command_pub.publish(global_command)
-				time.sleep(3)
+
+				#good yaw:
+				x= np.linalg.norm(rdes_inb/1000.)
+				y= np.linalg.norm(rw_inb/1000.)
+
+				A= np.arccos( (x*x + y*y - 1)/(2*x*y))
+				Bp= np.pi - np.arccos( (x*x + 1 - y*y)/(2*x))
+
+				#you want to yaw then:
+				firstyaw= yaw_des + ((Bp - A)*180/np.pi)
+
+				global_first_window_move=False
+
+
 			else:
-				mag= np.linalg.norm(rdes_inb/1000.)
 
-				global_lastmags[0,0:4]=global_lastmags[0,1:5]
-				global_lastmags[0,4]=mag
-
-				print('running avg:',np.linalg.norm(global_lastmags))
-
-
-				
-				if np.linalg.norm(global_lastmags)<.12:
-					pub_land.publish()
-					print('\n \n \n \n \n')
-					print('SHOOT BITCH!')
-					pub_land.publish()
-					print('\n \n \n \n \n')
-					print('SHOOT BITCH!')
-					pub_land.publish()
-					print('\n \n \n \n \n')
-					print('SHOOT BITCH!')
-					pub_land.publish()
-					print('\n \n \n \n \n')
-					print('SHOOT BITCH!')
-					pub_land.publish()
+				if pause_active:
+					print('pausing like a good boi')
+					if time.time() - pause_start_time > pauselength:
+						pause_active=False
 
 				else:
-					if mag<.85:
-						global_command.x=.8*(rdes_inb[0]/1000.)
-						global_command.y=.8*(rdes_inb[1]/1000.)
-						global_command.z=.8*(rdes_inb[2]/1000.)
-						global_command.w=0
+
+					#coarse yaw, doesnt need to be perfect when youre far away
+					if np.abs(yaw_des)>25:
+						#yaw only
+						global_command.x=0
+						global_command.y=0
+						global_command.z=0
+						global_command.w=yaw_des
 						command_pub.publish(global_command)
+						pause_active=True
+						pause_start_time=time.time()
+						
 					else:
-						global_command.x=.5*(rdes_inb[0]/1000.)
-						global_command.y=.5*(rdes_inb[1]/1000.)
-						global_command.z=.5*(rdes_inb[2]/1000.)
-						global_command.w=1.
-						command_pub.publish(global_command)
+						mag= np.linalg.norm(rdes_inb/1000.)
+
+						global_lastmags[0,0:4]=global_lastmags[0,1:5]
+						global_lastmags[0,4]=mag
+
+						print('running avg:',np.linalg.norm(global_lastmags))
+
+
+						
+						if np.linalg.norm(global_lastmags)<.12:
+							pub_land.publish()
+							print('\n \n \n \n \n')
+							print('SHOOT BITCH!')
+							pub_land.publish()
+							print('\n \n \n \n \n')
+							print('SHOOT BITCH!')
+							pub_land.publish()
+							print('\n \n \n \n \n')
+							print('SHOOT BITCH!')
+							pub_land.publish()
+							print('\n \n \n \n \n')
+							print('SHOOT BITCH!')
+							pub_land.publish()
+
+						else:
+							if mag<.85:
+
+
+								global_command.x=.8*(rdes_inb[0]/1000.)
+								global_command.y=.8*(rdes_inb[1]/1000.)
+								global_command.z=.8*(rdes_inb[2]/1000.)
+								global_command.w=0
+								command_pub.publish(global_command)
+
+								pause_active=True
+								pause_start_time=time.time()
+							else:
+								global_command.x=.6*(rdes_inb[0]/1000.)
+								global_command.y=.6*(rdes_inb[1]/1000.)
+								global_command.z=.6*(rdes_inb[2]/1000.)
+								global_command.w=1.
+								command_pub.publish(global_command)
 
 	else:
 		print 'Not enough corners found'
