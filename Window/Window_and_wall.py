@@ -52,7 +52,7 @@ bRc = np.transpose(cRb)
 vdes_ini = np.array([[-40],[-40],[1000]])
 
 pause_active=False
-pauselength=2.4 #seconds
+pauselength=4.4 #seconds
 
 pause_start_time=0
 
@@ -105,7 +105,7 @@ def hardcoded_Wall():
 
 
     #### Move 2, Cross the Wall, go fwd
-    command.x = 1.8
+    command.x = 1.6
     command.y = 0
     command.z = 0
     command.w = 1 # Latching enabled
@@ -418,6 +418,7 @@ def img_callback(data):
 	global pauselength
 	global pause_start_time
 	global global_windowisdone
+	global global_first_window_move
 
 	#dont want to do anything if youre done
 	if not global_windowisdone:
@@ -624,7 +625,8 @@ def WindowNode():
 	# time.sleep(4.5)
 	hardcoded_Wall()
 
-	img_sub = rospy.Subscriber("/image_raw", Image, img_callback, buff_size=2**24, queue_size=1)
+	# img_sub = rospy.Subscriber("/image_raw", Image, img_callback, buff_size=2**24, queue_size=1)
+	img_sub = rospy.Subscriber("/image_raw_throttle", Image, img_callback, buff_size=2**24, queue_size=1)
 	rospy.spin()
 
 if __name__ == '__main__':
