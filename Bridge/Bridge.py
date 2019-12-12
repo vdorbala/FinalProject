@@ -291,7 +291,7 @@ def img_callback(data):
 	if gotit or (angle is not None):
 
 		if y<120: #if you think theres a bridge behind you, there isnt.
-		
+
 			new_bridge=True
 
 			# x2 = int(round(x + 1000* np.cos(angle)))
@@ -498,7 +498,7 @@ def move_appropriately(bridge_description):
 		global_command.z = 0
 		global_command.w = 0 # Latching on, we shooting shit
 		# SEND IT
-		print('sending SHOOT command: ',global_command)
+		print('sending stop command: ',global_command)
 		command_pub.publish(global_command)
 
 		global_command.x = marker_loc[1]+overshoot
@@ -512,7 +512,7 @@ def move_appropriately(bridge_description):
 
 	else:
 		factor=.7
-		if dist_real<.3:
+		if dist_real<.33:
 			factor=.9
 
 		if bridge_description[2]> (3.14/2):
