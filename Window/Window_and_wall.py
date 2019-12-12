@@ -52,7 +52,7 @@ bRc = np.transpose(cRb)
 vdes_ini = np.array([[-40],[-40],[1000]])
 
 pause_active=False
-pauselength=4.4 #seconds
+pauselength=2.4 #seconds
 
 pause_start_time=0
 
@@ -68,7 +68,9 @@ global_first_window_move=True
 
 global_windowisdone=False
 
-global_lastmags = np.ones((1,5))*20000
+
+running_avg_length=2
+global_lastmags = np.ones((1,running_avg_length))*20000
 
 #add confidence metric that increases when you find the same window over and over and lowers when you dont find shit
 #theres some false window positives in the bag, that *shouldnt* be a problem but this will help with that
@@ -128,7 +130,7 @@ def hardcoded_Wall():
     command.x = 0
     command.y = 0
     command.z = 0
-    command.w = -30 # Yaw Command, positive left
+    command.w = -45 # Yaw Command, positive left
     # SEND IT
     print('sending command 3, Yaw towards the window: ',command)
     command_pub.publish(command)
@@ -419,6 +421,7 @@ def img_callback(data):
 	global pause_start_time
 	global global_windowisdone
 	global global_first_window_move
+	global running_avg_length
 
 	#dont want to do anything if youre done
 	if not global_windowisdone:
@@ -485,7 +488,7 @@ def img_callback(data):
 					global_command.x=.9*(rdes_inb[0]/1000.)
 					global_command.y=.9*(rdes_inb[1]/1000.)
 					global_command.z=.9*(rdes_inb[2]/1000.)
-					global_command.w=1.
+					global_command.w=0.
 					command_pub.publish(global_command)
 
 					#good yaw:
@@ -498,6 +501,10 @@ def img_callback(data):
 
 					#you want to yaw then:
 					firstyaw= yaw_des + ((Bp - A)*180/np.pi)
+
+					print('sleeping')
+					time.sleep(4.5)
+					print('yawing')
 
 					global_command.x=0
 					global_command.y=0
@@ -537,8 +544,8 @@ def img_callback(data):
 							#running average update:
 							mag= np.linalg.norm(rdes_inb/1000.)
 
-							global_lastmags[0,0:4]=global_lastmags[0,1:5]
-							global_lastmags[0,4]=mag
+							global_lastmags[0,0:(running_avg_length-1)]=global_lastmags[0,1:(running_avg_length)]
+							global_lastmags[0,(running_avg_length-1)]=mag
 
 							print('running avg:',np.linalg.norm(global_lastmags))
 
