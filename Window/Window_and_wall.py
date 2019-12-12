@@ -66,6 +66,8 @@ global_wallisdone=False
 
 global_first_window_move=True
 
+global_windowisdone=False
+
 global_lastmags = np.ones((1,5))*20000
 
 #add confidence metric that increases when you find the same window over and over and lowers when you dont find shit
@@ -415,152 +417,189 @@ def img_callback(data):
 	global pause_active
 	global pauselength
 	global pause_start_time
+	global global_windowisdone
+
+	#dont want to do anything if youre done
+	if not global_windowisdone:
+
+		img = bridge.imgmsg_to_cv2(data, "bgr8")
 
 
+		# start_t=time()
+		start_t=time.time()
+		median = cv2.medianBlur(img,5)
+		# median = cv2.medianBlur(median,5)
+		mask = GMM(median,thresh,k,mean,cov,pi)
+		res = cv2.bitwise_and(img,img, mask= mask)
+		center, inner_corners, outer_corners= applyCorners2Mask(mask,img)
 
-	img = bridge.imgmsg_to_cv2(data, "bgr8")
+		if not (inner_corners==0).any():
+			points_2d = np.float32([[center[0,0], center[0,1]], [inner_corners[1,0], inner_corners[1,1]],
+				[inner_corners[0,0], inner_corners[0,1]], [inner_corners[2,0], inner_corners[2,1]],
+				[inner_corners[3,0], inner_corners[3,1]]]) 
 
+			# rvec and tvec will give you the position of the world frame(defined at the center of the window) relative to the camera frame 
+			_res, rvec, tvec = cv2.solvePnP(points_3d, points_2d, K, dist_coeff, None, None, False, cv2.SOLVEPNP_ITERATIVE)
+			rmat,idk = cv2.Rodrigues(rvec)
 
-	# start_t=time()
-	start_t=time.time()
-	median = cv2.medianBlur(img,5)
-	# median = cv2.medianBlur(median,5)
-	mask = GMM(median,thresh,k,mean,cov,pi)
-	res = cv2.bitwise_and(img,img, mask= mask)
-	center, inner_corners, outer_corners= applyCorners2Mask(mask,img)
+			#vector to window in camera frame
+			rw_inc=tvec
+			#this is the vector to the window center in the body frame
+			rw_inb = np.matmul(bRc,rw_inc)
+			#matrix from Inertial(window) frame to camera frame
+			cRi = rmat
+			bRi = np.matmul(bRc,cRi)
+			#desired vector in body frame:
+			vdes_inb = np.matmul(bRi,vdes_ini)
+			#desired position in body frame
+			rdes_inb = rw_inb + vdes_inb
+			#lets just yaw toward the window each time, by the time we get lined up should be good
+			#this also prevents yawing too much and losing sight
+			yaw_des= np.arctan(rw_inb[1]/rw_inb[0])  * (180/3.14) 
 
-	if not (inner_corners==0).any():
-		points_2d = np.float32([[center[0,0], center[0,1]], [inner_corners[1,0], inner_corners[1,1]],
-			[inner_corners[0,0], inner_corners[0,1]], [inner_corners[2,0], inner_corners[2,1]],
-			[inner_corners[3,0], inner_corners[3,1]]]) 
+			print("--- %s full operation ---" % (time.time() - start_t))
 
-		# rvec and tvec will give you the position of the world frame(defined at the center of the window) relative to the camera frame 
-		_res, rvec, tvec = cv2.solvePnP(points_3d, points_2d, K, dist_coeff, None, None, False, cv2.SOLVEPNP_ITERATIVE)
-		rmat,idk = cv2.Rodrigues(rvec)
+			# mask= cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
+			mask=drawCorners(center, inner_corners, outer_corners,res)
 
-		#vector to window in camera frame
-		rw_inc=tvec
-		#this is the vector to the window center in the body frame
-		rw_inb = np.matmul(bRc,rw_inc)
-		#matrix from Inertial(window) frame to camera frame
-		cRi = rmat
-		bRi = np.matmul(bRc,cRi)
-		#desired vector in body frame:
-		vdes_inb = np.matmul(bRi,vdes_ini)
-		#desired position in body frame
-		rdes_inb = rw_inb + vdes_inb
-		#lets just yaw toward the window each time, by the time we get lined up should be good
-		#this also prevents yawing too much and losing sight
-		yaw_des= np.arctan(rw_inb[1]/rw_inb[0])  * (180/3.14) 
-
-		print("--- %s full operation ---" % (time.time() - start_t))
-
-		# mask= cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
-		mask=drawCorners(center, inner_corners, outer_corners,res)
-
-		print 'command to get to infront of window (m)'
-		print rdes_inb/1000.
-		print 'command to get to window (m)'
-		print rw_inb/1000.
-		print 'yaw this much to look at window (deg) +ve left'
-		print yaw_des
-
-		if global_wallisdone:
-
-			if global_first_window_move:
-				#if its the first window move you wanna fly and then do a good yaw,
-
-				print('FIRST GO')
-				#fly:
-				global_command.x=.9*(rdes_inb[0]/1000.)
-				global_command.y=.9*(rdes_inb[1]/1000.)
-				global_command.z=.9*(rdes_inb[2]/1000.)
-				global_command.w=1.
-				command_pub.publish(global_command)
-
-				#good yaw:
-				x= np.linalg.norm(rdes_inb/1000.)
-				y= np.linalg.norm(rw_inb/1000.)
-
-				A= np.arccos( (x*x + y*y - 1)/(2*x*y))
-				Bp= np.pi - np.arccos( (x*x + 1 - y*y)/(2*x))
-
-				#you want to yaw then:
-				firstyaw= yaw_des + ((Bp - A)*180/np.pi)
-
-				global_first_window_move=False
+			print 'command to get to infront of window (m)'
+			print rdes_inb/1000.
+			print 'command to get to window (m)'
+			print rw_inb/1000.
+			print 'yaw this much to look at window (deg) +ve left'
+			print yaw_des
 
 
-			else:
+			#alright i'm gonna walk through with comments for these ifs in case yall fux with it
 
-				if pause_active:
-					print('pausing like a good boi')
-					if time.time() - pause_start_time > pauselength:
-						pause_active=False
+			#only do shit if the wall is finished. If we still doing wall shit then chillout
+			if global_wallisdone:
+				#okay this is on the first time you see the window
+				if global_first_window_move:
+					#if its the first window move you wanna fly and then do a good yaw,
+					#and pretty much never yaw again
 
+					print('FIRST GO')
+					#fly:
+					global_command.x=.9*(rdes_inb[0]/1000.)
+					global_command.y=.9*(rdes_inb[1]/1000.)
+					global_command.z=.9*(rdes_inb[2]/1000.)
+					global_command.w=1.
+					command_pub.publish(global_command)
+
+					#good yaw:
+					x= np.linalg.norm(rdes_inb/1000.)
+					y= np.linalg.norm(rw_inb/1000.)
+
+					#this is cosine rule math to get the angle you have to yaw to be perpendicular at the spot youre trying to get to
+					A= np.arccos( (x*x + y*y - 1)/(2*x*y))
+					Bp= np.pi - np.arccos( (x*x + 1 - y*y)/(2*x))
+
+					#you want to yaw then:
+					firstyaw= yaw_des + ((Bp - A)*180/np.pi)
+
+					global_command.x=0
+					global_command.y=0
+					global_command.z=0
+					global_command.w=yaw_des
+					command_pub.publish(global_command)
+					pause_active=True
+					pause_start_time=time.time() #we pause after yaw because the image is lag af
+
+					global_first_window_move=False
+
+				#this is for any time after the first
 				else:
 
-					#coarse yaw, doesnt need to be perfect when youre far away
-					if np.abs(yaw_des)>25:
-						#yaw only
-						global_command.x=0
-						global_command.y=0
-						global_command.z=0
-						global_command.w=yaw_des
-						command_pub.publish(global_command)
-						pause_active=True
-						pause_start_time=time.time()
-						
+					if pause_active: #if we pausing for the image to catch up to our position then chill
+						print('pausing like a good boi')
+						if time.time() - pause_start_time > pauselength: #this is non-blocking pause implementation
+							pause_active=False
+
 					else:
-						mag= np.linalg.norm(rdes_inb/1000.)
 
-						global_lastmags[0,0:4]=global_lastmags[0,1:5]
-						global_lastmags[0,4]=mag
+						#coarse yaw, we don't really want to yaw unless its bad so here it is
 
-						print('running avg:',np.linalg.norm(global_lastmags))
-
-
-						
-						if np.linalg.norm(global_lastmags)<.12:
-							pub_land.publish()
-							print('\n \n \n \n \n')
-							print('SHOOT BITCH!')
-							pub_land.publish()
-							print('\n \n \n \n \n')
-							print('SHOOT BITCH!')
-							pub_land.publish()
-							print('\n \n \n \n \n')
-							print('SHOOT BITCH!')
-							pub_land.publish()
-							print('\n \n \n \n \n')
-							print('SHOOT BITCH!')
-							pub_land.publish()
-
+						#you can adjust the threshold here for tuning, hopefully its never triggered
+						if np.abs(yaw_des)>35:
+							#yaw only
+							global_command.x=0
+							global_command.y=0
+							global_command.z=0
+							global_command.w=yaw_des
+							command_pub.publish(global_command)
+							pause_active=True
+							pause_start_time=time.time() #we pause after yaw because the image is lag af
+							
+						#here are actual line up and move commands
 						else:
-							if mag<.85:
+							#running average update:
+							mag= np.linalg.norm(rdes_inb/1000.)
+
+							global_lastmags[0,0:4]=global_lastmags[0,1:5]
+							global_lastmags[0,4]=mag
+
+							print('running avg:',np.linalg.norm(global_lastmags))
 
 
-								global_command.x=.8*(rdes_inb[0]/1000.)
-								global_command.y=.8*(rdes_inb[1]/1000.)
-								global_command.z=.8*(rdes_inb[2]/1000.)
-								global_command.w=0
-								command_pub.publish(global_command)
+							#if we've been close for a moment then shoot
+							if np.linalg.norm(global_lastmags)<.12:
+								
+								pub_land.publish()
+								print('\n \n \n \n \n')
+								print('SHOOT BITCH!')
+								pub_land.publish()
+								print('\n \n \n \n \n')
+								print('SHOOT BITCH!')
+								pub_land.publish()
+								print('\n \n \n \n \n')
+								print('SHOOT BITCH!')
+								pub_land.publish()
+								print('\n \n \n \n \n')
+								print('SHOOT BITCH!')
+								pub_land.publish()
 
-								pause_active=True
-								pause_start_time=time.time()
+								# overshoot=1.
+								# norm = np.linalg.norm(rw_inb)
+								# shootvector= (rw_inb/norm)*(norm+overshoot)
+								# global_command.x=shootvector[0]
+								# global_command.y=shootvector[1]
+								# global_command.z=shootvector[2]
+								# global_command.w=1 #latch this for sure
+								# command_pub.publish(global_command)
+
+								global_windowisdone=True
+
 							else:
-								global_command.x=.6*(rdes_inb[0]/1000.)
-								global_command.y=.6*(rdes_inb[1]/1000.)
-								global_command.z=.6*(rdes_inb[2]/1000.)
-								global_command.w=1.
-								command_pub.publish(global_command)
 
+								#if youre close you can do most of the move
+								if mag<.85:
+
+
+									global_command.x=.8*(rdes_inb[0]/1000.)
+									global_command.y=.8*(rdes_inb[1]/1000.)
+									global_command.z=.8*(rdes_inb[2]/1000.)
+									global_command.w=0 #may want to latch this if its being shitty
+									command_pub.publish(global_command)
+
+									pause_active=True
+									pause_start_time=time.time() #pause for image to catch up
+
+								#if youre far then be more conservative, you lag pretty hard and shit anyway
+								else:
+									global_command.x=.6*(rdes_inb[0]/1000.)
+									global_command.y=.6*(rdes_inb[1]/1000.)
+									global_command.z=.6*(rdes_inb[2]/1000.)
+									global_command.w=1. #latch it too because youre a laggy bitch
+									command_pub.publish(global_command)
+
+		else:
+			print 'Not enough corners found'
+
+		# mask= cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
+		img_pub.publish(bridge.cv2_to_imgmsg(res, "bgr8"))
 	else:
-		print 'Not enough corners found'
-
-	# mask= cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
-	img_pub.publish(bridge.cv2_to_imgmsg(res, "bgr8"))
-
+		print 'Already did it, the fuck you waiting for do the bridge'
 
 
 
