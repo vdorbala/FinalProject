@@ -22,6 +22,9 @@ from geometry_msgs.msg import Point
 from geometry_msgs.msg import Quaternion
 from std_msgs.msg import Empty
 
+
+adaptive_threshold=.35
+
 error_integral=np.array([0.,0.,0.])
 error=1000
 
@@ -44,6 +47,8 @@ yaw_error_integral=0
 global_expected_yaw=0
 global_current_yaw=0
 
+#make smoother transition into adaptive gain reigon
+started_far=False
 
 islanded=True
 
@@ -135,6 +140,9 @@ def update_setpoint(data):
     global yaw_error
     global yaw_error_integral
 
+    global started_far
+    global adaptive_threshold
+
 
     if islanded==False:
         
@@ -169,6 +177,10 @@ def update_setpoint(data):
                     # Update the setpoint in global coordinates below
                     expected_pos_inertial= np.array([global_pos.position.x, global_pos.position.y, global_pos.position.z]) + command_vect_inertial
                     error= np.linalg.norm(command_vect_inertial)
+
+
+                    if error>adaptive_threshold:
+                        started_far=True
 
                     if error<.05: #if youre asked to just stop
                         error=10
@@ -230,9 +242,12 @@ def moveto_body():
     global yaw_error_integral
     global yaw_error
 
+    global adaptive_threshold
+    global started_far
 
-    acceptable_error=.1
-    adaptive_threshold=.35
+
+    acceptable_error=.09
+
 
     acceptable_yaw_error=2
 
@@ -277,12 +292,17 @@ def moveto_body():
                 if error<adaptive_threshold:
                     print '----------adaptive gains active------------'
                     
+                    if started_far:
+                        print 'RESETING INTEGRAL'
+                        error_integral=.001*error_integral #not completely 0 
+                        started_far=False
+
                     move_array[0]=.14*move_vect_body[0] - .22*velocity_vect_body[0] + .0011*error_integral[0] #TUNE THIS
                     move_array[1]=.14*move_vect_body[1] - .22*velocity_vect_body[1] + .0011*error_integral[1]
                     move_array[2]=.63*move_vect_body[2] - .10*velocity_vect_body[2] + .0011*error_integral[2]
                 else:
-                    move_array[0]=.08*move_vect_body[0] - .19*velocity_vect_body[0] + .0007*error_integral[0] #TUNE THIS
-                    move_array[1]=.08*move_vect_body[1] - .19*velocity_vect_body[1] + .0007*error_integral[1]
+                    move_array[0]=.08*move_vect_body[0] - .19*velocity_vect_body[0] + .0006*error_integral[0] #TUNE THIS
+                    move_array[1]=.08*move_vect_body[1] - .19*velocity_vect_body[1] + .0006*error_integral[1]
                     move_array[2]=.53*move_vect_body[2] - .10*velocity_vect_body[2] + .001*error_integral[2]
 
                 
