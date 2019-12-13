@@ -18,6 +18,41 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import Empty
 from cv_bridge import CvBridge, CvBridgeError
 
+
+
+#####################################################################
+#READ ME:
+
+#this node NEEDS throttled front camera topic!!!!!!
+
+#ALL OF HARDCODED WALL needs to be hardcoded!!!!!!!
+
+#requires 100% lighting
+
+#vision image publishing is commented out rn on line 621, and 429
+
+
+#TUNABLE PARAM:############################################################################
+
+#how far from window do you want to stabilize before shooting
+DESIRED_DIST=1.0 #meters
+
+#how much lower than the center of the window you want the camera to pass
+DESIRED_UNDERSHOOT=.1#meters
+
+#how close to exactly DESIRED_DIST away must you stay before shooting shit
+LENIENCE=.07#meters
+
+#how long youre running average is, more means you wait longer before shooting and stay still longer
+running_avg_length=5
+
+#how long to pause after yawing and some manuevers, allows image to catch up to current position
+pauselength=1.5 #seconds
+
+
+########################################
+
+
 bridge = CvBridge()
 img_pub = rospy.Publisher("/window_mask",Image,queue_size=1)
 command_pub = rospy.Publisher("/moveto_cmd_body",Quaternion,queue_size=1)
@@ -25,13 +60,13 @@ yaw_pub= rospy.Publisher('/yawto_cmd_body',Point,queue_size=1)
 pub_takeoff= rospy.Publisher('/bebop/takeoff',Empty,queue_size=1)
 pub_land= rospy.Publisher('bebop/land',Empty,queue_size=1)
 
+
 points_3d = np.float32([[0.0, 0.0, 0.0], [-390, -215, 0.0], [390, -215, 0.0], [420, 215, 0.0], [-420, 215, 0.0]]) 
 intrinsics = np.array([345.1095082193839, 344.513136922481, 315.6223488316934, 238.99403696680216]) #mm
 dist_coeff = np.array([-0.3232637683425793, 0.045757813401817116, 0.0024085161807053074, 0.003826902574202108])
 K = np.float64([ [intrinsics[0], 0.0, intrinsics[2]], [0.0, intrinsics[1], intrinsics[3]], [0.0, 0.0, 1.0]])
 GMMin = './YellowGMM3_100.npz'
 thresh = .3#1e-4#1e-5
-
 npzfile = np.load(GMMin)
 k = npzfile['arr_0']
 mean = npzfile['arr_1']
@@ -42,40 +77,23 @@ pi = npzfile['arr_3']
 cRb = np.array([[0, -1, 0], [0, 0, -1], [1, 0, 0]])
 bRc = np.transpose(cRb)
 
-#TUNABLE PARAM:############################################################################
-#want to be 1 meter in front of window before shooting the shot so
-# vdes_ini = np.array([[0],[0],[1000]])
 
-#little hax for better line up
-#ask for slightly left since approaching from right
-#ask for slightly low since camera on bottom of quad
-vdes_ini = np.array([[-40],[-40],[1000]])
+
+vdes_ini = np.array([[0],[0],[DESIRED_DIST*1000]])
 
 pause_active=False
-pauselength=2.4 #seconds
-
 pause_start_time=0
 
-######################################################################################
-
-#TODO:
-#add actual commands sent to controller. currently just calcs commands
 global_command=Quaternion()
 
 global_wallisdone=False
-
 global_first_window_move=True
-
+global_second_window_move=False
 global_windowisdone=False
 
+firstyaw=0
 
-running_avg_length=2
 global_lastmags = np.ones((1,running_avg_length))*20000
-
-#add confidence metric that increases when you find the same window over and over and lowers when you dont find shit
-#theres some false window positives in the bag, that *shouldnt* be a problem but this will help with that
-#make it so you only execute commands if your confidence value is high
-
 
 
 
@@ -107,10 +125,10 @@ def hardcoded_Wall():
 
 
     #### Move 2, Cross the Wall, go fwd
-    command.x = 1.6
+    command.x = 1.3
     command.y = 0
     command.z = 0
-    command.w = 1 # Latching enabled
+    command.w = 0 # Latching enabled
     # SEND IT
     print('sending command 2 CROSS THE WALL: ',command)
     command_pub.publish(command)
@@ -130,7 +148,7 @@ def hardcoded_Wall():
     command.x = 0
     command.y = 0
     command.z = 0
-    command.w = -45 # Yaw Command, positive left
+    command.w = -30 # Yaw Command, positive left
     # SEND IT
     print('sending command 3, Yaw towards the window: ',command)
     command_pub.publish(command)
@@ -218,7 +236,7 @@ def applyCorners2Mask(mask,img):
 
 				if np.linalg.norm(np.array([cx-cx0,cy-cy0]))< equi_radius:
 
-					cv2.drawContours(edges, [c], -1, (255), 1)
+					# cv2.drawContours(edges, [c], -1, (255), 1)
 		
 
 	# cv2.imshow('edges',edges)
@@ -421,7 +439,14 @@ def img_callback(data):
 	global pause_start_time
 	global global_windowisdone
 	global global_first_window_move
+	global global_second_window_move
 	global running_avg_length
+	global DESIRED_DIST
+
+	global firstyaw
+
+	global DESIRED_UNDERSHOOT
+	global LENIENCE
 
 	#dont want to do anything if youre done
 	if not global_windowisdone:
@@ -464,7 +489,10 @@ def img_callback(data):
 			print("--- %s full operation ---" % (time.time() - start_t))
 
 			# mask= cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
-			mask=drawCorners(center, inner_corners, outer_corners,res)
+			# mask=drawCorners(center, inner_corners, outer_corners,res)
+
+			#LOWER YOURSELF BITCH HACK
+			rw_inb[2]=rw_inb[2]-DESIRED_UNDERSHOOT/1000.
 
 			print 'command to get to infront of window (m)'
 			print rdes_inb/1000.
@@ -483,41 +511,64 @@ def img_callback(data):
 					#if its the first window move you wanna fly and then do a good yaw,
 					#and pretty much never yaw again
 
-					print('FIRST GO')
-					#fly:
-					global_command.x=.9*(rdes_inb[0]/1000.)
-					global_command.y=.9*(rdes_inb[1]/1000.)
-					global_command.z=.9*(rdes_inb[2]/1000.)
-					global_command.w=0.
-					command_pub.publish(global_command)
-
-					#good yaw:
-					x= np.linalg.norm(rdes_inb/1000.)
-					y= np.linalg.norm(rw_inb/1000.)
-
-					#this is cosine rule math to get the angle you have to yaw to be perpendicular at the spot youre trying to get to
-					A= np.arccos( (x*x + y*y - 1)/(2*x*y))
-					Bp= np.pi - np.arccos( (x*x + 1 - y*y)/(2*x))
-
-					#you want to yaw then:
-					firstyaw= yaw_des + ((Bp - A)*180/np.pi)
-
-					print('sleeping')
-					time.sleep(4.5)
-					print('yawing')
-
+					print('FIRST MOVE--|||||||||||||||||||||||||||||||||||||||-----------------------')
+					print('YAWING--------------------------------------------')
 					global_command.x=0
 					global_command.y=0
 					global_command.z=0
 					global_command.w=yaw_des
 					command_pub.publish(global_command)
+
 					pause_active=True
-					pause_start_time=time.time() #we pause after yaw because the image is lag af
+					pause_start_time=time.time()
 
 					global_first_window_move=False
 
 				#this is for any time after the first
 				else:
+					#running average update:
+					mag= np.linalg.norm(rw_inb/1000.)
+
+					global_lastmags[0,0:(running_avg_length-1)]=global_lastmags[0,1:(running_avg_length)]
+					global_lastmags[0,(running_avg_length-1)]=mag
+
+					print('|||||||||||||||||||||||||               running avg:',np.average(global_lastmags))
+					print('mag: ',mag,' array: ', global_lastmags)
+
+
+					#if we've been close for a moment then shoot
+					if np.abs(np.average(global_lastmags)-DESIRED_DIST)<LENIENCE:
+						
+						# pub_land.publish()
+						print('\n \n \n \n \n')
+						print('SHOOT BITCH!')
+						# pub_land.publish()
+						print('\n \n \n \n \n')
+						print('SHOOT BITCH!')
+						# pub_land.publish()
+						print('\n \n \n \n \n')
+						print('SHOOT BITCH!')
+						# pub_land.publish()
+						print('\n \n \n \n \n')
+						print('SHOOT BITCH!')
+						# pub_land.publish()
+
+						overshoot=1.
+						rw_inb=rw_inb/1000.
+						norm = np.linalg.norm(rw_inb)
+						shootvector= (rw_inb/norm)*(norm+overshoot)
+
+						print('SHOOT THISSSSS--------')
+						print(shootvector)
+						global_command.x=shootvector[0]
+						global_command.y=shootvector[1]
+						global_command.z=shootvector[2]
+						global_command.w=1 #latch this for sure
+						command_pub.publish(global_command)
+
+						global_windowisdone=True
+
+
 
 					if pause_active: #if we pausing for the image to catch up to our position then chill
 						print('pausing like a good boi')
@@ -526,88 +577,52 @@ def img_callback(data):
 
 					else:
 
-						#coarse yaw, we don't really want to yaw unless its bad so here it is
+						global_command.x=0
+						global_command.y=0
+						global_command.z=0
+						global_command.w=0
+						command_pub.publish(global_command)
 
-						#you can adjust the threshold here for tuning, hopefully its never triggered
-						if np.abs(yaw_des)>35:
-							#yaw only
-							global_command.x=0
-							global_command.y=0
-							global_command.z=0
-							global_command.w=yaw_des
-							command_pub.publish(global_command)
-							pause_active=True
-							pause_start_time=time.time() #we pause after yaw because the image is lag af
-							
+						#second move is a yaw:
+					
 						#here are actual line up and move commands
+
+						#if youre close you can do most of the move
+						if mag<.75:
+
+							print('SENDING ----------------closeish--------------------- ||||||||||||||||||||')
+							global_command.x=.8*(rdes_inb[0]/1000.)
+							global_command.y=.8*(rw_inb[1]/1000.)
+							global_command.z=.8*(rw_inb[2]/1000.)
+							global_command.w=0 
+							command_pub.publish(global_command)
+							print(global_command.x,global_command.y,global_command.z,global_command.w)
+
+							pause_active=True
+							pause_start_time=time.time() #pause for image to catch up
+
+						#if youre far then be more conservative, you lag pretty hard and shit anyway
 						else:
-							#running average update:
-							mag= np.linalg.norm(rdes_inb/1000.)
+							print('SENDING  -----------------far-------------------- ||||||||||||||||||||')
 
-							global_lastmags[0,0:(running_avg_length-1)]=global_lastmags[0,1:(running_avg_length)]
-							global_lastmags[0,(running_avg_length-1)]=mag
+							global_command.x=.6*(rdes_inb[0]/1000.)
+							global_command.y=.6*(rw_inb[1]/1000.)
+							global_command.z=.6*(rw_inb[2]/1000.)
+							global_command.w=0. 
+							command_pub.publish(global_command)
+							print(global_command.x,global_command.y,global_command.z,global_command.w)
 
-							print('running avg:',np.linalg.norm(global_lastmags))
-
-
-							#if we've been close for a moment then shoot
-							if np.linalg.norm(global_lastmags)<.12:
-								
-								pub_land.publish()
-								print('\n \n \n \n \n')
-								print('SHOOT BITCH!')
-								pub_land.publish()
-								print('\n \n \n \n \n')
-								print('SHOOT BITCH!')
-								pub_land.publish()
-								print('\n \n \n \n \n')
-								print('SHOOT BITCH!')
-								pub_land.publish()
-								print('\n \n \n \n \n')
-								print('SHOOT BITCH!')
-								pub_land.publish()
-
-								# overshoot=1.
-								# norm = np.linalg.norm(rw_inb)
-								# shootvector= (rw_inb/norm)*(norm+overshoot)
-								# global_command.x=shootvector[0]
-								# global_command.y=shootvector[1]
-								# global_command.z=shootvector[2]
-								# global_command.w=1 #latch this for sure
-								# command_pub.publish(global_command)
-
-								global_windowisdone=True
-
-							else:
-
-								#if youre close you can do most of the move
-								if mag<.85:
-
-
-									global_command.x=.8*(rdes_inb[0]/1000.)
-									global_command.y=.8*(rdes_inb[1]/1000.)
-									global_command.z=.8*(rdes_inb[2]/1000.)
-									global_command.w=0 #may want to latch this if its being shitty
-									command_pub.publish(global_command)
-
-									pause_active=True
-									pause_start_time=time.time() #pause for image to catch up
-
-								#if youre far then be more conservative, you lag pretty hard and shit anyway
-								else:
-									global_command.x=.6*(rdes_inb[0]/1000.)
-									global_command.y=.6*(rdes_inb[1]/1000.)
-									global_command.z=.6*(rdes_inb[2]/1000.)
-									global_command.w=1. #latch it too because youre a laggy bitch
-									command_pub.publish(global_command)
+							pause_active=True
+							pause_start_time=time.time() #pause for image to catch up
 
 		else:
 			print 'Not enough corners found'
 
-		# mask= cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
-		img_pub.publish(bridge.cv2_to_imgmsg(res, "bgr8"))
+
+		# img_pub.publish(bridge.cv2_to_imgmsg(res, "bgr8"))
 	else:
-		print 'Already did it, the fuck you waiting for do the bridge'
+		print 'Already did it, the fuck you waiting for, do the bridge'
+		rospy.signal_shutdown('DIDIDOIT?')
 
 
 
