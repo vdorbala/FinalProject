@@ -24,6 +24,7 @@ from std_msgs.msg import Empty
 
 
 adaptive_threshold=.35
+acceptable_error=.09
 
 error_integral=np.array([0.,0.,0.])
 error=1000
@@ -142,6 +143,7 @@ def update_setpoint(data):
 
     global started_far
     global adaptive_threshold
+    global acceptable_error
 
 
     if islanded==False:
@@ -182,7 +184,7 @@ def update_setpoint(data):
                     if error>adaptive_threshold:
                         started_far=True
 
-                    if error<.05: #if youre asked to just stop
+                    if error<acceptable_error: #if youre asked to just stop
                         error=10
 
                     error_integral=0
@@ -245,8 +247,10 @@ def moveto_body():
     global adaptive_threshold
     global started_far
 
+    global acceptable_error
 
-    acceptable_error=.09
+
+    
 
 
     acceptable_yaw_error=2
