@@ -187,7 +187,7 @@ def update_setpoint(data):
                     if error<acceptable_error: #if youre asked to just stop
                         error=10
 
-                    error_integral=0
+                    error_integral=np.array([0.,0.,0.])
 
                     #publish it for RVIZ here if wanted
                     # global_waypoint.x = expected_pos_inertial[0]
@@ -265,6 +265,7 @@ def moveto_body():
             print('Running right now with error: ',error)
 
             error= np.linalg.norm(np.array([global_pos.position.x, global_pos.position.y, global_pos.position.z])-expected_pos_inertial)
+
             if error<acceptable_error and followthrough==True:
                 print 'Finished latched command'
                 followthrough=False
@@ -288,36 +289,52 @@ def moveto_body():
                 velocity_vect_body= np.array([global_vel.linear.x, global_vel.linear.y, global_vel.linear.z])
                 error_integral=error_integral+move_vect_body
 
+
+                move_vect_body=np.array(move_vect_body)
+                velocity_vect_body=np.array(velocity_vect_body)
+                error_integral=np.array(error_integral)
+
                 #move_vect_body[2]=1.29*move_vect_body[2]
 
 
                 #ADAPTIVE GAINS FOR WHEN NEARBY
+                print('error-------------------------------------------------------------------------')
+                print(error)
+                print(' ')
 
                 if error<adaptive_threshold:
                     print '----------adaptive gains active------------'
                     
                     if started_far:
                         print 'RESETING INTEGRAL'
-                        error_integral=.001*error_integral #not completely 0 
+                        error_integral= np.array([0.,0.,0.]) #not completely 0 
                         started_far=False
+
+                    print('move_vect_body: ',move_vect_body)
+                    print('velocity: ',velocity_vect_body)
+                    print('error_integral: ',error_integral)
+                    print(' ')
 
                     move_array[0]=.14*move_vect_body[0] - .22*velocity_vect_body[0] + .0011*error_integral[0] #TUNE THIS
                     move_array[1]=.14*move_vect_body[1] - .22*velocity_vect_body[1] + .0011*error_integral[1]
                     move_array[2]=.63*move_vect_body[2] - .10*velocity_vect_body[2] + .0011*error_integral[2]
                 else:
+
+                    print('move_vect_body: ',move_vect_body)
+                    print('velocity: ',velocity_vect_body)
+                    print('error_integral: ',error_integral)
+                    print(' ')
+
+
+
                     move_array[0]=.08*move_vect_body[0] - .19*velocity_vect_body[0] + .0006*error_integral[0] #TUNE THIS
                     move_array[1]=.08*move_vect_body[1] - .19*velocity_vect_body[1] + .0006*error_integral[1]
                     move_array[2]=.53*move_vect_body[2] - .10*velocity_vect_body[2] + .001*error_integral[2]
 
                 
-                print('error-------------------------------------------------------------------------')
-                print(error)
+                
                 #timedelay= .1#TUNE THIS
                 print('move vect: ', move_array)
-                print(' ')
-                print('move_vect_body: ',move_vect_body)
-                print('velocity: ',velocity_vect_body)
-                print('error_integral: ',error_integral)
                 print(' ')
                 print('command is')
                 print(np.array([x,y,z]))
