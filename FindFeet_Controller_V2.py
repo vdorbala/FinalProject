@@ -26,7 +26,7 @@ from std_msgs.msg import Empty
 
 #import FixedGMM
 
-
+shutdown_flag = 0
 bridge = CvBridge()
 
 # Initialize GMM Feet params
@@ -43,9 +43,9 @@ mvAvgNum = 4
 numFeetArr = np.zeros((1,mvAvgNum))
 XPixelErr= np.zeros((1,mvAvgNum))
 
-img_pub = rospy.Publisher("/foot_mask",Image,queue_size=1)
+#img_pub = rospy.Publisher("/foot_mask",Image,queue_size=1)
 command_pub = rospy.Publisher("/moveto_cmd_body",Quaternion,queue_size=1)
-
+test_pub = rospy.Publisher("/test",Quaternion,queue_size=1)
 def run():
     rospy.init_node('FeetTracker', anonymous=True)
     #rospy.Subscriber("/image_raw", Image, detectFeet,queue_size=1)
@@ -110,14 +110,15 @@ def detectFeet(data):
 	global thresh,k,mean,cov,pi
 	global numFeetArr, XPixelErr, mvAvgNum
 	global img,mask,kernel,erosion,betterMask, cnts
+	global shutdown_flag
 	# Pass image through CV bridge
 	img = bridge.imgmsg_to_cv2(data,"passthrough")
 
 	start_t=time.time()
 
 	imgshape = img.shape
-	print imgshape
-	x_im = int(imgshape[0]/2)
+	#print imgshape
+	x_im = int(imgshape[1]/2)
 	
 	
 	img = img[img.shape[0]/2:img.shape[0],:,:]
@@ -179,7 +180,7 @@ def detectFeet(data):
 		numFeet = 0
 	pubimg = np.uint8(contour_img)
 	#cv2.cvtColor(contour_img,cv2.COLOR_BGR2RGB)
-	img_pub.publish(bridge.cv2_to_imgmsg(pubimg, "mono8"))
+	#img_pub.publish(bridge.cv2_to_imgmsg(pubimg, "mono8"))
 
 	numFeetArr[0,0:mvAvgNum-1]=numFeetArr[0,1:mvAvgNum]
 	numFeetArr[0,mvAvgNum-1]=numFeet
@@ -197,11 +198,11 @@ def detectFeet(data):
 
 	flag = 0
 	error = x_im - cX
-	if np.mean(numFeetArr) == 2:
+	if all(numFeetArr[0,:]==2): #np.mean(numFeetArr) == 2:
 		outCenter = np.mean(XPixelErr)
 		flag = 2
 		print('flag 2, good solution',error)
-	elif np.mean(np.mean(numFeetArr) == 1):
+	elif all(numFeetArr[0,:]==1):
 		outCenter = np.mean(XPixelErr)
 		flag = 1
 		print('flag 1, might need to yaw',error)
@@ -220,17 +221,26 @@ def detectFeet(data):
 	error = x_im - outCenter # Positive left, physically
 	error_now = x_im - XPixelErr[0,mvAvgNum-1]
 	if flag == 2: # Move to centered 
-		if error < 120 and delta > 100:
+		if error < 100 and delta > 100:
 			print('GOING THROUGH WALL')
-			command.x = 2.0*np.cos(error*FOVxPerPixel*3.14/180)
-			command.y = 2.0*np.sin(error*FOVxPerPixel*3.14/180)
+			command.x = 2.0*np.cos(error_now*FOVxPerPixel*3.14/180)
+			command.y = 2.0*np.sin(error_now*FOVxPerPixel*3.14/180)
 			command.z = 0
 			command.w = 1 # Latching enabled
 			print('Cmd: ',command)
 			command_pub.publish(command)
-			time.sleep(4)
-			rospy.signal_shutdown('WOOOOOOOOOOOOOOOHOOOOO')
-		if error < 120 and delta < 100:
+			#test_pub.publish(command)
+			shutdown_flag = 1
+			time.sleep(1)
+			command_pub.publish(command)
+			time.sleep(1)
+			command_pub.publish(command)
+			time.sleep(1)
+
+
+			rospy.signal_shutdown('Woohoo')
+			
+		elif error < 100 and delta < 100:
 			print('Stepping towards wall slowly')
 			command.x = 0.5*np.cos(error*FOVxPerPixel*3.14/180)
 			command.y = 0.5*np.sin(error*FOVxPerPixel*3.14/180)
@@ -238,15 +248,18 @@ def detectFeet(data):
 			command.w = 1 # Latching enabled
 			print('Cmd: ',command)
 			command_pub.publish(command)
-			time.sleep(4)
+			test_pub.publish(command)
+			
 			
 		else:
 			print('Good Solution, but far off Center: Yawing')
 			command.x = 0
 			command.y = 0
 			command.z = 0
-			command.w = FOVxPerPixel*error # 
+			command.w = 0.5*FOVxPerPixel*error # 
 			command_pub.publish(command) 
+			#test_pub.publish(command)
+			time.sleep(2)
 			print('Cmd: ',command)
 		# if np.abs(error_now) < 25 and delta > 100 and np.abs(error) < 35:
  	# 		print('GOING THROUGH WALL')
@@ -269,7 +282,7 @@ def detectFeet(data):
 		command.x = 0
 		command.y = 0
 		command.z = 0
-		command.w = Pyaw*error_now # 
+		command.w = 0.5*Pyaw*error_now # 
 		command_pub.publish(command) 
 		print('Cmd: ',command)
 	else:
