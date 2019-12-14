@@ -236,7 +236,7 @@ def applyCorners2Mask(mask,img):
 
 				if np.linalg.norm(np.array([cx-cx0,cy-cy0]))< equi_radius:
 
-					# cv2.drawContours(edges, [c], -1, (255), 1)
+					cv2.drawContours(edges, [c], -1, (255), 1)
 		
 
 	# cv2.imshow('edges',edges)
