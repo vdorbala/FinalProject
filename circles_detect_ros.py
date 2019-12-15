@@ -13,6 +13,7 @@ from cv_bridge import CvBridge, CvBridgeError
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Quaternion
 import rospy
+from std_msgs.msg import Empty
 
 import numpy as np
 import cv2
@@ -22,6 +23,7 @@ velocity = Quaternion()
 bridge = CvBridge()
 mask_pub = rospy.Publisher('/mask', Image, queue_size=1)
 vel_pub = rospy.Publisher('/moveto_cmd_body', Quaternion, queue_size=1)
+pub_land= rospy.Publisher('bebop/land',Empty,queue_size=1)
 def find_circles(my_img):
     global flag 
     img = bridge.imgmsg_to_cv2(my_img, "bgr8")
@@ -62,8 +64,8 @@ def find_circles(my_img):
                    cv2.HOUGH_GRADIENT, 1, 20, param1 = 50, 
                param2 = 30, minRadius = 1, maxRadius = 40) 
     
-    scale_x = 0.001
-    scale_y = 0.001
+    scale_x = 0.005
+    scale_y = 0.005
     # Draw circles that are detected. 
     if detected_circles is not None: 
   
@@ -87,12 +89,24 @@ def find_circles(my_img):
             print("del_y")
             print(del_y)
             # if the error is greater than 20 pixels, then only change motion in y direction 
+            move_x = del_y*scale_y
+            move_y = del_x*scale_x
+
+            # if move_x < 0.1 and move_y < 0.1:
+            #     velocity.w = 0
+            #     velocity.x = 0
+            #     velocity.y = 0
+            #     velocity.z = 0
+            #     print("reached goal")
+            #     pub_land.publish()
+            #     rospy.signal_shutdown('Node is finished, shut down')
+            # else:
 
             if abs(del_x)>20:
                 flag = 0
-                velocity.w = 1
+                velocity.w = 0
                 velocity.x = 0
-                velocity.y = del_x*scale_x
+                velocity.y = move_y
                 velocity.z = 0
                 print("y")
             else:
@@ -104,8 +118,8 @@ def find_circles(my_img):
                 print("y done")
             if flag == 1:
                 if abs(del_y)>20:   
-                    velocity.w = 1
-                    velocity.x = del_y*scale_y
+                    velocity.w = 0
+                    velocity.x = move_x
                     velocity.y = 0
                     velocity.z = 0
                     print("x")
@@ -120,8 +134,8 @@ def find_circles(my_img):
                 if abs(del_x) > 10 and abs(del_y)>10:
 
                     velocity.w = 0
-                    velocity.x = del_y*scale_y
-                    velocity.y = del_x*scale_x
+                    velocity.x = move_x
+                    velocity.y = move_y
                     velocity.z = 0
                     print("xy")
                 else:
@@ -130,12 +144,14 @@ def find_circles(my_img):
                     velocity.y = 0
                     velocity.z = 0
                     print("done")
+                    pub_land.publish()
+                    rospy.signal_shutdown('Node is finished, shut down')
             break 
             # cv2.imshow("Detected Circle", mask) 
             # cv2.waitKey(0) 
     mask_pub.publish(bridge.cv2_to_imgmsg(mask, "mono8")) 
     vel_pub.publish(velocity)
-     
+    
 def main():
     rospy.init_node('bullseye_detection', anonymous=False)
     rospy.Subscriber('/duo3d/left/image_rect', Image, find_circles)
