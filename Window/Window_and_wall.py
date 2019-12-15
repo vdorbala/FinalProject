@@ -109,7 +109,7 @@ def hardcoded_Wall():
     # zcmd = 1.7 - global_pos.position.z # meters, global to body
     zcmd = .8
     command.x = 0
-    command.y = -0.2 # 0.2 meters right
+    command.y = -0.15 # 0.2 meters right
     command.z = zcmd
     command.w = 0 # Latching disabled
     # SEND IT
@@ -125,8 +125,8 @@ def hardcoded_Wall():
 
 
     #### Move 2, Cross the Wall, go fwd
-    command.x = 1.3
-    command.y = 0
+    command.x = 1.5
+    command.y = -0.01
     command.z = 0
     command.w = 0 # Latching enabled
     # SEND IT
