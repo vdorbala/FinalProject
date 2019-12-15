@@ -1,0 +1,3 @@
+<launch>
+	<node name="battery_check" pkg="dqmc" type="batterycheck.py"/>
+</launch>

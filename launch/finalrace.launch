@@ -1,0 +1,14 @@
+<launch>
+
+	<include file = "$(find bebop_driver)/launch/bebop_node.launch"/>
+
+	<include file = "$(find dqmc)/launch/justcamera.launch"/>
+
+	<include file = "$(find dqmc)/launch/batterycheck.launch"/>
+
+	<node name="camera_throttler" type="throttle" pkg="topic_tools" args="messages /image_raw 1" />
+
+	<!--node name="controller" pkg="dqmc" type="MoveToController.py"/-->
+	<!--node name="stagerun" pkg="dqmc" type="statemachine.py"/-->
+
+</launch>

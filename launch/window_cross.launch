@@ -1,0 +1,8 @@
+
+<launch>
+
+	<node name="moveToController" pkg="dqmc" type="MoveToController.py" output="screen"/>
+
+	<node name="window_master" pkg="dqmc" type="Window_master_RTbag.py" output="screen"/>
+
+</launch>
