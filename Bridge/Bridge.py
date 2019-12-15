@@ -27,7 +27,7 @@ import rospy
 hardcoded_angle= -60 #degrees from facing forward, positive is left
 
 #this is angle to turn after bridge is corossed
-hardcoded_yaw= -90 #same definitions as above
+hardcoded_yaw= 0 #same definitions as above
 
 # This node needs a bottom camera
 
