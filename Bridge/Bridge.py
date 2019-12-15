@@ -528,7 +528,7 @@ def move_appropriately(bridge_description):
 			dist_real=.5
 
 
-		if dist_real<.04:
+		if dist_real<.03:
 
 			vector2bridge= np.array([A[0]-160,120-A[1]])#-A[:2]# if 0,0 in top left corner
 			
