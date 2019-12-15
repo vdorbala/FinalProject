@@ -377,6 +377,9 @@ def moveto_body():
 
                 command = .005*yaw_error + .00003*yaw_error_integral
 
+                if command>.135:
+                    command=.135
+
                 print('yaw error: ',yaw_error,' yaw  error_integral: ',yaw_error_integral,'  cmd: ',command)
                 print('current: ',global_current_yaw,' expected: ', global_expected_yaw)
 
