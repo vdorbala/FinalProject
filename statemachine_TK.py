@@ -88,14 +88,31 @@ def main():
 
     runscript("/home/qdmc/bebop_ws/src/dqmc/scripts/Bridge.py")
 
-    print("CROSSED BRIDGE SUCCESSFULLY! \n STAGE 4 COMPLETE!")
+    print("CROSSED BRIDGE SUCCESSFULLY! \n STAGE 3 COMPLETE!")
+
+
+
+    time.sleep(3)
+
+    # #### Move 3, Yaw right (-ve)
+    command.x = 0
+    command.y = -1
+    command.z = -.5
+    command.w = 0 # Yaw Command, positive left
+    # # SEND IT
+    print('sending transition command, move towards the target: ',command)
+    command_pub.publish(command)
+    # wait for it
+    time.sleep(5)
+
+
 
    
     # print("FINISHED YAWING NOW!")
 
     # time.sleep(4.)
     # pub_takeoff.publish()
-    time.sleep(4.)
+    # time.sleep(4.)
 
     runscript("/home/qdmc/bebop_ws/src/dqmc/scripts/circles_detect_ros.py")
 
