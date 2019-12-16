@@ -3,7 +3,6 @@
 from __future__ import print_function
 import sys
 import os
-import time
 PY3 = sys.version_info[0] == 3
 dirpath = os.getcwd()
 
@@ -16,20 +15,15 @@ from geometry_msgs.msg import Quaternion
 import rospy
 from std_msgs.msg import Empty
 
-
-
 import numpy as np
 import cv2
 import imutils
 
-hardcoded_yaw = -120 #total yaw youd like to try
-pauselength=4.5 #seconds to wait after first yaw to regroup and do second one
-yawsteps_number=2 #number of steps you want to break your yaw command up into
-
-
-pause_active=False
-pause_start_time=0
-yawstep=0
+hardcoded_yaw = 0
+pause_maxIters = 0
+#current_yaw = 0
+pause_iter = 0
+yaw_done = 1
 
 flag = 0
 velocity = Quaternion()
@@ -37,22 +31,8 @@ bridge = CvBridge()
 mask_pub = rospy.Publisher('/mask', Image, queue_size=1)
 vel_pub = rospy.Publisher('/moveto_cmd_body', Quaternion, queue_size=1)
 pub_land= rospy.Publisher('bebop/land',Empty,queue_size=1)
-
-
-
-
-
 def find_circles(my_img):
-    global flag, hardcoded_yaw
-    global pause_start_time
-    global pauselength
-    global pause_active
-    global yawstep
-    global yawsteps_number
-
-
-    
-
+    global flag, pause_iter, hardcoded_yaw, pause_maxIters,yaw_done
     img = bridge.imgmsg_to_cv2(my_img, "bgr8")
     
     img_orig=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
@@ -91,8 +71,8 @@ def find_circles(my_img):
                    cv2.HOUGH_GRADIENT, 1, 20, param1 = 50, 
                param2 = 30, minRadius = 1, maxRadius = 40) 
     
-    scale_x = 0.02
-    scale_y = 0.02
+    scale_x = 0.005
+    scale_y = 0.005
     # Draw circles that are detected. 
     if detected_circles is not None: 
   
@@ -111,10 +91,23 @@ def find_circles(my_img):
             # first control in x dirn in image space (y in bebop space)
             del_x = x_im-a # if +ve go left (+y direction bebop)
             del_y = y_im-b
-            print("del_x: ",del_x, "del_y: ",del_y)
+            print("del_x")
+            print(del_x)
+            print("del_y")
+            print(del_y)
             # if the error is greater than 20 pixels, then only change motion in y direction 
             move_x = del_y*scale_y
             move_y = del_x*scale_x
+
+            # if move_x < 0.1 and move_y < 0.1:
+            #     velocity.w = 0
+            #     velocity.x = 0
+            #     velocity.y = 0
+            #     velocity.z = 0
+            #     print("reached goal")
+            #     pub_land.publish()
+            #     rospy.signal_shutdown('Node is finished, shut down')
+            # else:
 
             if abs(del_x)>20:
                 flag = 0
@@ -153,52 +146,37 @@ def find_circles(my_img):
                     velocity.z = 0
                     print("xy")
                 else:
-                    
-                    if yawstep>=yawsteps_number and pause_active==False:
-                        print('FINISHED YAWING AND CAME BACK TO BULLSEYE')
-                        time.sleep(1)
+                    if yaw_done == 0:
+                        velocity.w = hardcoded_yaw
+                        velocity.x = 0
+                        velocity.y = 0
+                        velocity.z = 0
+                        print("time to yaw")
+                        # Set yaw flag to complete
+                        #vel_pub.publish(velocity)
+                        yaw_done = 1
+                        # start the pause iterator
+                        pause_iter = pause_maxIters
+                    elif yaw_done ==1 and pause_iter == 0:
+                        velocity.w = 0
+                        velocity.x = 0
+                        velocity.y = 0
+                        velocity.z = 0
+                        print("done")
+                        pub_land.publish()
                         rospy.signal_shutdown('Node is finished, shut down')
-                        time.sleep(1)
             break 
             # cv2.imshow("Detected Circle", mask) 
             # cv2.waitKey(0) 
-
-
     mask_pub.publish(bridge.cv2_to_imgmsg(mask, "mono8")) 
     vel_pub.publish(velocity)
-
-
-    print('yawstep: ',yawstep)
-    
-    if time.time() - pause_start_time > pauselength: #this is non-blocking pause implementation
-        pause_active=False #if youve waited the time then the pause is off
-    else:
-        print('pausing like a good boi') #still waiting bitch
-
-    if pause_active==False: #only if youre not currently in a pause
-        if yawstep<yawsteps_number: #only if you havent done all of the yawsteps yet
-            velocity.x = 0
-            velocity.y = 0
-            velocity.z = 0
-            velocity.w = hardcoded_yaw/yawsteps_number # Yaw Command, positive left
-            # SEND IT
-            print('\n \n sending Yaw towards the window: ',hardcoded_yaw/yawsteps_number)
-            print('yawstep: ',yawstep)
-            vel_pub.publish(velocity)
-            time.sleep(.5)
-            #better wait a bit before trying to send another
-            yawstep=yawstep+1
-            pause_active=True
-            pause_start_time=time.time()
-            
-
-
-
-
+    if pause_iter > 0:
+        pause_iter = pause_iter-1
+        print("Pausing for yaw: ", pause_iter)
 
     
 def main():
-    rospy.init_node('bullseye_yaw', anonymous=False)
+    rospy.init_node('bullseye_detection', anonymous=False)
     rospy.Subscriber('/duo3d/left/image_rect', Image, find_circles)
     rospy.spin()
     

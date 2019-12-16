@@ -58,58 +58,7 @@ def main():
 
     print(" Passed Window SUCCESSFULLY! \n Finished Stage 1 and stage 2!")
     
-    time.sleep(5)
-    # #### Move 3, Yaw right (-ve)
-    command.x = 0
-    command.y = 0
-    command.z = 0
-    command.w = -50 # Yaw Command, positive left
-    # # SEND IT
-    print('sending command 3, Yaw towards the window: ',command)
-    command_pub.publish(command)
-    # wait for it
-    time.sleep(4)
-
-    # command.x = 0
-    # command.y = -0.15
-    # command.z = 0
-    # command.w = 1 # Yaw Command, positive left
-    # # SEND IT
-    # print('sending command 3, Yaw towards the window: ',command)
-    # command_pub.publish(command)
-    # # wait for it
     time.sleep(3)
-
-    command.x = 0
-    command.y = 0
-    command.z = 0
-    command.w = -70 # Yaw Command, positive left
-    # SEND IT
-    print('Yawing towards bridge: ',command)
-    command_pub.publish(command)
-    # wait for it
-    time.sleep(4)
-
-    command.x = 0
-    command.y = 0
-    command.z = 0
-    command.w = 0 # Yaw Command, positive left
-    # SEND IT
-    print('Yawing towards bridge: ',command)
-    command_pub.publish(command)
-    # wait for it
-    time.sleep(3)
-
-
-    command.x = 0
-    command.y = -0.5
-    command.z = 0
-    command.w = 0 # Yaw Command, positive left
-    # SEND IT
-    print('Yawing towards bridge: ',command)
-    command_pub.publish(command)
-    # wait for it
-    time.sleep(4)
 
     print("STARTING BRIDGE SCRIPT")
 
@@ -117,80 +66,78 @@ def main():
 
     print("CROSSED BRIDGE SUCCESSFULLY! \n STAGE 4 COMPLETE!")
 
-    time.sleep(5)
+    time.sleep(2)
         #### Move 3, Yaw right (-ve)
-    command.x = 0
-    command.y = 0
-    command.z = 0
-    command.w = -60 # Yaw Command, positive left
-    # SEND IT
-    print('sending command 3, Yaw towards the window: ',command)
-    command_pub.publish(command)
+    # command.x = 0
+    # command.y = 0
+    # command.z = 0
+    # command.w = -60 # Yaw Command, positive left
+    # # SEND IT
+    # print('sending command 3, Yaw towards the window: ',command)
+    # command_pub.publish(command)
     # wait for it
-    time.sleep(5)
+    # time.sleep(5)
+
+    # command.x = 0
+    # command.y = 0
+    # command.z = 0
+    # command.w = 0 # Yaw Command, positive left
+    # # SEND IT
+    # print('Yawing towards bridge: ',command)
+    # command_pub.publish(command)
+    # # wait for it
+    # time.sleep(3)
 
     command.x = 0
     command.y = 0
-    command.z = 0
+    command.z = -0.6
     command.w = 0 # Yaw Command, positive left
     # SEND IT
-    print('Yawing towards bridge: ',command)
-    command_pub.publish(command)
-    # wait for it
-    time.sleep(3)
-
-    command.x = 0.3
-    command.y = 0
-    command.z = -0.5
-    command.w = 0 # Yaw Command, positive left
-    # SEND IT
-    print('sending command 3, Yaw towards the window: ',command)
+    print('DROP IT!: ',command)
     command_pub.publish(command)
     # wait for it
     time.sleep(4)
 
-    command.x = 0
-    command.y = 0
-    command.z = 0
-    command.w = 0 # Yaw Command, positive left
-    # SEND IT
-    print('Yawing towards bridge: ',command)
-    command_pub.publish(command)
-    # wait for it
-    time.sleep(2)
+    # command.x = 0
+    # command.y = 0
+    # command.z = 0
+    # command.w = 0 # Yaw Command, positive left
+    # # SEND IT
+    # print('Yawing towards bridge: ',command)
+    # command_pub.publish(command)
+    # # wait for it
+    # time.sleep(2)
 
-    command.x = 0
-    command.y = 0
-    command.z = 0
-    command.w = -60 # Yaw Command, positive left
-    # SEND IT
-    print('sending command 3, Yaw towards the window: ',command)
-    command_pub.publish(command)
-    # wait for it
-    time.sleep(4)
+    # command.x = 0
+    # command.y = 0
+    # command.z = 0
+    # command.w = -60 # Yaw Command, positive left
+    # # SEND IT
+    # print('sending command 3, Yaw towards the window: ',command)
+    # command_pub.publish(command)
+    # # wait for it
+    # time.sleep(4)
 
-    command.x = 0
-    command.y = 0
-    command.z = 0
-    command.w = 0 # Yaw Command, positive left
-    # SEND IT
-    print('Yawing towards bridge: ',command)
-    command_pub.publish(command)
-    # wait for it
-    time.sleep(2)
+    # command.x = 0
+    # command.y = 0
+    # command.z = 0
+    # command.w = 0 # Yaw Command, positive left
+    # # SEND IT
+    # print('Yawing towards bridge: ',command)
+    # command_pub.publish(command)
+    # # wait for it
+    # time.sleep(2)
 
 
-    print("FINISHED YAWING NOW!")
+    # print("FINISHED YAWING NOW!")
 
-    time.sleep(4.)
-    pub_takeoff.publish()
-    time.sleep(4.)
+    # time.sleep(4.)
+    # pub_takeoff.publish()
+    # time.sleep(4.)
+    print("DETECTING CIRCLES NOW")
+    runscript("/home/qdmc/bebop_ws/src/dqmc/scripts/circles_detect_land.py")
 
-    runscript("/home/qdmc/bebop_ws/src/dqmc/scripts/circles_detect_ros.py")
-
-    print("STAGE 4 COMPLETE")
-
-    time.sleep(5.)
+    time.sleep(3.)
 
     command.w = 0
     command.x = 0
@@ -202,16 +149,26 @@ def main():
 
     pub_takeoff.publish()
     time.sleep(3.)
+
+    print("YAWING ON CIRCLE NOW")
+
+    runscript("/home/qdmc/bebop_ws/src/dqmc/scripts/circles_detect_yaw.py")
+
+    print("STAGE 4 COMPLETE")
+
+
     
     ### KILLL COMMAND! rospy.signal_shutdown('WOOOOOOOOOOOOOOOHOOOOO')
     runscript("/home/qdmc/bebop_ws/src/dqmc/scripts/FindFeet_Controller_V2.py")
 
     print("STAGE 5 COMPLETE")
         
-    runscript("/home/qdmc/bebop_ws/src/dqmc/scripts/circles_detect_ros.py")
+    runscript("/home/qdmc/bebop_ws/src/dqmc/scripts/circles_detect_land.py")
     
     print("STAGE 6 COMPLETE")
 
+
+    print("YAYYYYYYYYYYYY!! FINALLY!")
     # runscript("stage12.py")
     # runscript("stage3.py")
     # runscript("stage4.py")
