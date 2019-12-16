@@ -314,9 +314,11 @@ def moveto_body():
                     print('velocity: ',velocity_vect_body)
                     print('error_integral: ',error_integral)
                     print(' ')
+                    move_array[0]=.44*move_vect_body[0] - .82*velocity_vect_body[0] + .0011*error_integral[0] #TUNE THIS
+                    move_array[1]=.44*move_vect_body[1] - .82*velocity_vect_body[1] + .0011*error_integral[1]
 
-                    move_array[0]=.14*move_vect_body[0] - .22*velocity_vect_body[0] + .0011*error_integral[0] #TUNE THIS
-                    move_array[1]=.14*move_vect_body[1] - .22*velocity_vect_body[1] + .0011*error_integral[1]
+                    # move_array[0]=.14*move_vect_body[0] - .22*velocity_vect_body[0] + .0011*error_integral[0] #TUNE THIS
+                    # move_array[1]=.14*move_vect_body[1] - .22*velocity_vect_body[1] + .0011*error_integral[1]
                     move_array[2]=.63*move_vect_body[2] - .10*velocity_vect_body[2] + .0011*error_integral[2]
                 else:
 
@@ -408,9 +410,9 @@ def moveto_body():
                 print('positional---------------')
                 print('error: ',error)
                 print('move_vect_body: ',move_vect_body,' velocity: ',velocity_vect_body)
-
-                move_array[0]=.14*move_vect_body[0] - .22*velocity_vect_body[0] #TUNE THIS
-                move_array[1]=.14*move_vect_body[1] - .22*velocity_vect_body[1]
+                ## DIS DAT YAW DRIFT GAINS
+                move_array[0]=.43*move_vect_body[0] - .82*velocity_vect_body[0] #TUNE THIS
+                move_array[1]=.44*move_vect_body[1] - .82*velocity_vect_body[1]
                 move_array[2]=.63*move_vect_body[2] - .10*velocity_vect_body[2]
 
                 print('move_command: ', move_array)
@@ -444,7 +446,8 @@ def moveto_body():
                 global_command.angular.x=0
                 global_command.angular.y=0
                 global_command.angular.z=0
-                pub_commands.publish(global_command)
+                error_integral=np.array([0.,0.,0.])
+                # pub_commands.publish(global_command)
 
 
     else:
