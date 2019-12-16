@@ -38,7 +38,7 @@ from cv_bridge import CvBridge, CvBridgeError
 DESIRED_DIST=1.0 #meters
 
 #how much lower than the center of the window you want the camera to pass
-DESIRED_UNDERSHOOT=.22#meters
+DESIRED_UNDERSHOOT=.3#meters
 
 #how close to exactly DESIRED_DIST away must you stay before shooting shit
 LENIENCE=.05#meters
@@ -107,7 +107,7 @@ def hardcoded_Wall():
 
     #### Move 1: Line up with Wall 
     # zcmd = 1.7 - global_pos.position.z # meters, global to body
-    zcmd = .6
+    zcmd = .60
     command.x = 0
     command.y = -0.15 # 0.2 meters right
     command.z = zcmd
@@ -492,15 +492,18 @@ def img_callback(data):
 			# mask=drawCorners(center, inner_corners, outer_corners,res)
 
 			#LOWER YOURSELF BITCH HACK
-			rw_inb[2]=rw_inb[2]-DESIRED_UNDERSHOOT/1000.
+			
 
-			print 'command to get to infront of window (m)'
-			print rdes_inb/1000.
+			
 			print 'command to get to window (m)'
 			print rw_inb/1000.
 			print 'yaw this much to look at window (deg) +ve left'
 			print yaw_des
 
+			rw_inb[2]=rw_inb[2]-DESIRED_UNDERSHOOT/1000.
+
+			print 'command to get to infront of window (m)'
+			print( (rw_inb- np.array([[1000.],[0.],[0.]]))/1000. )
 
 			#alright i'm gonna walk through with comments for these ifs in case yall fux with it
 
@@ -609,7 +612,7 @@ def img_callback(data):
 						else:
 							print('SENDING  -----------------far-------------------- ||||||||||||||||||||')
 
-							global_command.x=.6*(rw_inb[0]/1000.)
+							global_command.x=.6*((rw_inb[0]/1000.)-1)
 							global_command.y=.6*(rw_inb[1]/1000.)
 							global_command.z=.6*(rw_inb[2]/1000.)
 							global_command.w=0. 
