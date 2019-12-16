@@ -18,6 +18,13 @@ from std_msgs.msg import Empty
 import numpy as np
 import cv2
 import imutils
+
+hardcoded_yaw = -90
+pause_maxIters = 200
+#current_yaw = 0
+pause_iter = 0
+yaw_done = 0
+
 flag = 0
 velocity = Quaternion()
 bridge = CvBridge()
@@ -25,7 +32,7 @@ mask_pub = rospy.Publisher('/mask', Image, queue_size=1)
 vel_pub = rospy.Publisher('/moveto_cmd_body', Quaternion, queue_size=1)
 pub_land= rospy.Publisher('bebop/land',Empty,queue_size=1)
 def find_circles(my_img):
-    global flag 
+    global flag, pause_iter, hardcoded_yaw, pause_maxIters,yaw_done
     img = bridge.imgmsg_to_cv2(my_img, "bgr8")
     
     img_orig=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
@@ -139,18 +146,34 @@ def find_circles(my_img):
                     velocity.z = 0
                     print("xy")
                 else:
-                    velocity.w = 0
-                    velocity.x = 0
-                    velocity.y = 0
-                    velocity.z = 0
-                    print("done")
-                    pub_land.publish()
-                    rospy.signal_shutdown('Node is finished, shut down')
+                    if yaw_done == 0:
+                        velocity.w = hardcoded_yaw
+                        velocity.x = 0
+                        velocity.y = 0
+                        velocity.z = 0
+                        print("time to yaw")
+                        # Set yaw flag to complete
+                        #vel_pub.publish(velocity)
+                        yaw_done = 1
+                        # start the pause iterator
+                        pause_iter = pause_maxIters
+                    elif yaw_done ==1 and pause_iter == 0:
+                        velocity.w = 0
+                        velocity.x = 0
+                        velocity.y = 0
+                        velocity.z = 0
+                        print("done")
+                        pub_land.publish()
+                        rospy.signal_shutdown('Node is finished, shut down')
             break 
             # cv2.imshow("Detected Circle", mask) 
             # cv2.waitKey(0) 
     mask_pub.publish(bridge.cv2_to_imgmsg(mask, "mono8")) 
     vel_pub.publish(velocity)
+    if pause_iter > 0:
+        pause_iter = pause_iter-1
+        print("Pausing for yaw: ", pause_iter)
+
     
 def main():
     rospy.init_node('bullseye_detection', anonymous=False)
