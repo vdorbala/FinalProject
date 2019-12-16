@@ -68,6 +68,7 @@ def main():
     # pub_takeoff.publish()
     # print('huh?')
     # time.sleep(5.)
+    time.sleep(8)
 
     # #### Move 3, Yaw right (-ve)
     command.x = 0
@@ -94,7 +95,7 @@ def main():
 
     # time.sleep(4.)
     # pub_takeoff.publish()
-    # time.sleep(4.)
+    time.sleep(4.)
 
     runscript("/home/qdmc/bebop_ws/src/dqmc/scripts/circles_detect_ros.py")
 
