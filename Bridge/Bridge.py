@@ -336,7 +336,9 @@ def img_callback(data):
 			global_bridge_description[2]=angle #radians yo
 			frames_checked=0
 
+			global_last_iffy_bridge=global_bridge_description
 			move_appropriately(global_bridge_description)
+
 
 		else:
 			print 'Got a new bridge  ','NOT SUPER SURE'
@@ -396,21 +398,26 @@ def search_bridge():
 	global crossed
 	global new_bridge
 	
-	if crossed==False:
-		if not first_got:
 
-			print('Havent found shit')
-			if global_pos.position.z<2.0:
-				global_command.x = 0
-				global_command.y = 0 
-				global_command.z = .35
-				global_command.w = 0 # Latching disabled, if we see something sooner might as well go then
-				# SEND IT
-				print('sending command up: ',global_command)
-				command_pub.publish(global_command) #move up to see something
-			else:				
+
+	if global_pos.position.z<2.0:
+
+		print('moving up')
+		global_command.x = 0
+		global_command.y = 0 
+		global_command.z = .35
+		global_command.w = 0 # Latching disabled, if we see something sooner might as well go then
+		# SEND IT
+		print('sending command up: ',global_command)
+		command_pub.publish(global_command) #move up to see something
+	else:				
+
+
+
+		if crossed==False:
+			if not first_got:
+
 				print('im high up and dont see shit')
-
 				
 				hardcoded_angle_rad= hardcoded_angle*(3.14/180)
 
@@ -422,47 +429,47 @@ def search_bridge():
 				print('sending command search: ',global_command)
 				command_pub.publish(global_command)
 
-				# pub_land.publish() #edge case shit here
+					# pub_land.publish() #edge case shit here
 
-		else: #we something at some point
-			if global_bridge_description.all()==0:
-				#we dont see shit rn
+			else: #we something at some point
+				if global_bridge_description.all()==0:
+					#we dont see shit rn
 
-				#check counter, if its been a while then cry and think about doing a sketchyboiii
-				if frames_checked>300:
-					print('I WOULD DO SKETCHY SHIT NOW')
-					# pub_land.publish()
-					move_appropriately(global_last_iffy_bridge)
-	else:
-		print 'I already crossed'
+					#check counter, if its been a while then cry and think about doing a sketchyboiii
+					if frames_checked>90:
+						print('I WOULD DO SKETCHY SHIT NOW')
+						# pub_land.publish()
+						move_appropriately(global_last_iffy_bridge)
+		else:
+			print 'I already crossed'
 
 
-		print('time: ',time.time() - pause_start_time)
+			print('time: ',time.time() - pause_start_time)
 
-		if time.time() - pause_start_time > pauselength: #this is non-blocking pause implementation
-			pause_active=False
+			if time.time() - pause_start_time > pauselength: #this is non-blocking pause implementation
+				pause_active=False
 
-			bridge_angle= -global_last_good_bridge[2] #in rad %this makes sense in regular ass x, y coordinates (not image)
-			bridge_angle= 180*bridge_angle/np.pi #convert to degrees
+				bridge_angle= -global_last_good_bridge[2] #in rad %this makes sense in regular ass x, y coordinates (not image)
+				bridge_angle= 180*bridge_angle/np.pi #convert to degrees
 
-			if bridge_angle>0:
+				if bridge_angle>0:
 
-				yaw_right_2bridge= 90-bridge_angle
-				yaw_right_2wall= yaw_right_2bridge + 60
-			else:
-				yaw_left_2bridge= 90+bridge_angle
-				yaw_right_2wall= 60 - yaw_left_2bridge
+					yaw_right_2bridge= 90-bridge_angle
+					yaw_right_2wall= yaw_right_2bridge + 60
+				else:
+					yaw_left_2bridge= 90+bridge_angle
+					yaw_right_2wall= 60 - yaw_left_2bridge
 
-			print('bridge_angle: ',bridge_angle)
-			print('YAWING--------------------------------------------')
-			global_command.x=0
-			global_command.y=0
-			global_command.z=0
-			#global_command.w=-yaw_right_2wall
-			global_command.w= hardcoded_yaw
-			command_pub.publish(global_command)
-			time.sleep(1)
-			rospy.signal_shutdown('BOOTY')
+				print('bridge_angle: ',bridge_angle)
+				print('YAWING--------------------------------------------')
+				global_command.x=0
+				global_command.y=0
+				global_command.z=0
+				#global_command.w=-yaw_right_2wall
+				global_command.w= hardcoded_yaw
+				command_pub.publish(global_command)
+				time.sleep(1)
+				rospy.signal_shutdown('BOOTY')
 
 
 def find_bridge_main():
