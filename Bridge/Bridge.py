@@ -24,10 +24,10 @@ import rospy
 # HARDCODE the angle to the bridge when this node starts.
 # IN degrees, from 0 is facing forward, positive is to the left or counterclockwise!
 
-hardcoded_angle= -60 #degrees from facing forward, positive is left
+hardcoded_angle= -0 #degrees from facing forward, positive is left
 
 #this is angle to turn after bridge is corossed
-hardcoded_yaw= 0 #same definitions as above
+hardcoded_yaw= 0#-60 #same definitions as above
 
 # This node needs a bottom camera
 
@@ -461,7 +461,7 @@ def search_bridge():
 			#global_command.w=-yaw_right_2wall
 			global_command.w= hardcoded_yaw
 			command_pub.publish(global_command)
-
+			time.sleep(1)
 			rospy.signal_shutdown('BOOTY')
 
 
