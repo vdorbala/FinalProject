@@ -3,6 +3,7 @@
 from __future__ import print_function
 import sys
 import os
+import time
 PY3 = sys.version_info[0] == 3
 dirpath = os.getcwd()
 
@@ -164,7 +165,9 @@ def find_circles(my_img):
                         velocity.z = 0
                         print("done")
                         pub_land.publish()
+                        time.sleep(2)
                         rospy.signal_shutdown('Node is finished, shut down')
+                        time.sleep(1)
             break 
             # cv2.imshow("Detected Circle", mask) 
             # cv2.waitKey(0) 
