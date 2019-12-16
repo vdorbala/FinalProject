@@ -38,13 +38,13 @@ from cv_bridge import CvBridge, CvBridgeError
 DESIRED_DIST=1.0 #meters
 
 #how much lower than the center of the window you want the camera to pass
-DESIRED_UNDERSHOOT=.1#meters
+DESIRED_UNDERSHOOT=.15#meters
 
 #how close to exactly DESIRED_DIST away must you stay before shooting shit
-LENIENCE=.07#meters
+LENIENCE=.05#meters
 
 #how long youre running average is, more means you wait longer before shooting and stay still longer
-running_avg_length=5
+running_avg_length=6
 
 #how long to pause after yawing and some manuevers, allows image to catch up to current position
 pauselength=1.5 #seconds
@@ -125,7 +125,7 @@ def hardcoded_Wall():
 
 
     #### Move 2, Cross the Wall, go fwd
-    command.x = 1.5
+    command.x = 1.3
     command.y = -0.01
     command.z = 0
     command.w = 0 # Latching enabled
@@ -565,8 +565,8 @@ def img_callback(data):
 						global_command.z=shootvector[2]
 						global_command.w=1 #latch this for sure
 						command_pub.publish(global_command)
-
 						global_windowisdone=True
+						command_pub.publish(global_command)
 
 
 
