@@ -1,0 +1,8 @@
+
+<launch>
+
+	<node name="front_camera" pkg ="dqmc" type="ros-capture.py"/>
+
+	<node name="camera_throttler" type="throttle" pkg="topic_tools" args="messages /image_raw 1" />
+
+</launch>

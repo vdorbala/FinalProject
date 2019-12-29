@@ -38,13 +38,13 @@ from cv_bridge import CvBridge, CvBridgeError
 DESIRED_DIST=1.0 #meters
 
 #how much lower than the center of the window you want the camera to pass
-DESIRED_UNDERSHOOT=.3#meters
+DESIRED_UNDERSHOOT=.1#meters
 
 #how close to exactly DESIRED_DIST away must you stay before shooting shit
-LENIENCE=.05#meters
+LENIENCE=.07#meters
 
 #how long youre running average is, more means you wait longer before shooting and stay still longer
-running_avg_length=6
+running_avg_length=5
 
 #how long to pause after yawing and some manuevers, allows image to catch up to current position
 pauselength=1.5 #seconds
@@ -107,7 +107,7 @@ def hardcoded_Wall():
 
     #### Move 1: Line up with Wall 
     # zcmd = 1.7 - global_pos.position.z # meters, global to body
-    zcmd = .60
+    zcmd = .8
     command.x = 0
     command.y = -0.15 # 0.2 meters right
     command.z = zcmd
@@ -125,8 +125,8 @@ def hardcoded_Wall():
 
 
     #### Move 2, Cross the Wall, go fwd
-    command.x = 1.3
-    command.y = -0.01
+    command.x = 1.5
+    command.y = 0
     command.z = 0
     command.w = 0 # Latching enabled
     # SEND IT
@@ -144,16 +144,16 @@ def hardcoded_Wall():
     command_pub.publish(command)
 
 
-    #### Move 3, Yaw right
-    command.x = 0
-    command.y = 0
-    command.z = 0
-    command.w = -30 # Yaw Command, positive left
-    # SEND IT
-    print('sending command 3, Yaw towards the window: ',command)
-    command_pub.publish(command)
-    # wait for it
-    time.sleep(4)
+    # #### Move 3, Yaw right
+    # command.x = 0
+    # command.y = 0
+    # command.z = 0
+    # command.w = -30 # Yaw Command, positive left
+    # # SEND IT
+    # print('sending command 3, Yaw towards the window: ',command)
+    # command_pub.publish(command)
+    # # wait for it
+    # time.sleep(4)
 
 
     #### Move 4, Move initially to center on the window (no latching, let the window controller take over)
@@ -492,18 +492,15 @@ def img_callback(data):
 			# mask=drawCorners(center, inner_corners, outer_corners,res)
 
 			#LOWER YOURSELF BITCH HACK
-			
+			rw_inb[2]=rw_inb[2]-DESIRED_UNDERSHOOT/1000.
 
-			
+			print 'command to get to infront of window (m)'
+			print rdes_inb/1000.
 			print 'command to get to window (m)'
 			print rw_inb/1000.
 			print 'yaw this much to look at window (deg) +ve left'
 			print yaw_des
 
-			rw_inb[2]=rw_inb[2]-DESIRED_UNDERSHOOT/1000.
-
-			print 'command to get to infront of window (m)'
-			print( (rw_inb- np.array([[1000.],[0.],[0.]]))/1000. )
 
 			#alright i'm gonna walk through with comments for these ifs in case yall fux with it
 
@@ -568,12 +565,10 @@ def img_callback(data):
 						global_command.z=shootvector[2]
 						global_command.w=1 #latch this for sure
 						command_pub.publish(global_command)
-						time.sleep(0.2)
+						time.sleep(.2)
 						command_pub.publish(global_command)
+
 						global_windowisdone=True
-						time.sleep(0.2)
-						command_pub.publish(global_command)
-						time.sleep(1)
 
 
 
@@ -598,7 +593,7 @@ def img_callback(data):
 						if mag<.75:
 
 							print('SENDING ----------------closeish--------------------- ||||||||||||||||||||')
-							global_command.x=.8*(rw_inb[0]/1000.)
+							global_command.x=.8*(rdes_inb[0]/1000.)
 							global_command.y=.8*(rw_inb[1]/1000.)
 							global_command.z=.8*(rw_inb[2]/1000.)
 							global_command.w=0 
@@ -612,7 +607,7 @@ def img_callback(data):
 						else:
 							print('SENDING  -----------------far-------------------- ||||||||||||||||||||')
 
-							global_command.x=.6*((rw_inb[0]/1000.)-1)
+							global_command.x=.6*(rdes_inb[0]/1000.)
 							global_command.y=.6*(rw_inb[1]/1000.)
 							global_command.z=.6*(rw_inb[2]/1000.)
 							global_command.w=0. 

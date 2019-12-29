@@ -1,0 +1,8 @@
+
+<launch>
+
+	<include file = "$(find bebop_driver)/launch/bebop_node.launch"/>
+
+	<include file ="$(find duo3d_driver)/launch/duo3d_camera.launch"/>
+
+</launch>

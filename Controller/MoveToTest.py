@@ -12,9 +12,11 @@ import rospy
 import time
 import numpy as np
 from geometry_msgs.msg import Quaternion
+from geometry_msgs.msg import Point
 from std_msgs.msg import Empty
 
 pub_commands= rospy.Publisher('/moveto_cmd_body',Quaternion,queue_size=1)
+pub_yaw= rospy.Publisher('/yawto_cmd_body',Point,queue_size=1)
 pub_takeoff= rospy.Publisher('/bebop/takeoff',Empty,queue_size=1)
 
 
@@ -24,6 +26,8 @@ def tester():
 
     rospy.init_node('moveto_tester', anonymous=True, log_level=rospy.WARN)
     command=Quaternion()
+
+    # yawcmd=Point()
     
     print('Taking off') #i think the node was too speedy or something, ignore this takeoff mess its just a hack for testing
     pub_takeoff.publish()
@@ -49,11 +53,37 @@ def tester():
         command.x=1
         command.w=1
         pub_commands.publish(command)
-        time.sleep(15.5)
+        time.sleep(8.5)
         print 'publishing 2'
         command.x=-1
+        command.w=90
         pub_commands.publish(command)
-        time.sleep(15.5)
+        time.sleep(3.5)
+        print 'publishing 3'
+        command.x=0
+        command.y=1
+        command.z=0
+        command.w=0
+        pub_commands.publish(command)
+        time.sleep(1.0)
+        print 'publishing 4'
+        command.x=0
+        command.y=-.5
+        command.z=0
+        command.w=0
+        pub_commands.publish(command)
+        time.sleep(1.0)
+
+        print 'publishing 4'
+        command.x=0
+        command.y=-.5
+        command.z=0
+        command.w=90
+        pub_commands.publish(command)
+        time.sleep(3.0)
+
+
+
         
         # if once==0:
         #     print 'publishing latch'

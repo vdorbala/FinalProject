@@ -314,9 +314,11 @@ def moveto_body():
                     print('velocity: ',velocity_vect_body)
                     print('error_integral: ',error_integral)
                     print(' ')
+                    move_array[0]=.44*move_vect_body[0] - .82*velocity_vect_body[0] + .0011*error_integral[0] #TUNE THIS
+                    move_array[1]=.44*move_vect_body[1] - .82*velocity_vect_body[1] + .0011*error_integral[1]
 
-                    move_array[0]=.14*move_vect_body[0] - .22*velocity_vect_body[0] + .0011*error_integral[0] #TUNE THIS
-                    move_array[1]=.14*move_vect_body[1] - .22*velocity_vect_body[1] + .0011*error_integral[1]
+                    # move_array[0]=.14*move_vect_body[0] - .22*velocity_vect_body[0] + .0011*error_integral[0] #TUNE THIS
+                    # move_array[1]=.14*move_vect_body[1] - .22*velocity_vect_body[1] + .0011*error_integral[1]
                     move_array[2]=.63*move_vect_body[2] - .10*velocity_vect_body[2] + .0011*error_integral[2]
                 else:
 
@@ -363,7 +365,7 @@ def moveto_body():
             print('YAW Running right now with error: ',yaw_error)
 
             if abs(yaw_error)>acceptable_yaw_error and islanded==False:
-                print '---------------------'
+                print 'yaw: ------------------------------'
 
 
                 yaw_error= global_expected_yaw-global_current_yaw
@@ -377,16 +379,48 @@ def moveto_body():
 
                 command = .005*yaw_error + .00003*yaw_error_integral
 
-                if command>.135:
-                    command=.135
+                # if command>.135:
+                #     command=.135
 
                 print('yaw error: ',yaw_error,' yaw  error_integral: ',yaw_error_integral,'  cmd: ',command)
                 print('current: ',global_current_yaw,' expected: ', global_expected_yaw)
 
+
+                #accoutning for drift here:
+                error= np.linalg.norm(np.array([global_pos.position.x, global_pos.position.y, global_pos.position.z])-expected_pos_inertial)
+                current_pos_inertial=np.array([global_pos.position.x, global_pos.position.y, global_pos.position.z])
+                move_vect_inertial= expected_pos_inertial-current_pos_inertial
+                quat_I_to_B= np.array([global_pos.orientation.w, global_pos.orientation.x, global_pos.orientation.y, global_pos.orientation.z])
+                quat_I_to_B_inv= np.array([quat_I_to_B[0], -quat_I_to_B[1], -quat_I_to_B[2],-quat_I_to_B[3]])              
+                move_quat_inertial= np.array([0, move_vect_inertial[0],  move_vect_inertial[1], move_vect_inertial[2]])
+                temp= quat_mult(quat_I_to_B_inv,move_quat_inertial)
+                move_quat_body= quat_mult(temp,quat_I_to_B)
+                move_vect_body= move_quat_body[1:]# this is basically your error vector
+                velocity_vect_body= np.array([global_vel.linear.x, global_vel.linear.y, global_vel.linear.z])
+
+                #PD ONLY
+                # error_integral=error_integral+move_vect_body
+
+
+                move_vect_body=np.array(move_vect_body)
+                velocity_vect_body=np.array(velocity_vect_body)
+                # error_integral=np.array(error_integral)
+
+
+                print('positional---------------')
+                print('error: ',error)
+                print('move_vect_body: ',move_vect_body,' velocity: ',velocity_vect_body)
+                ## DIS DAT YAW DRIFT GAINS
+                move_array[0]=.43*move_vect_body[0] - .82*velocity_vect_body[0] #TUNE THIS
+                move_array[1]=.44*move_vect_body[1] - .82*velocity_vect_body[1]
+                move_array[2]=.63*move_vect_body[2] - .10*velocity_vect_body[2]
+
+                print('move_command: ', move_array)
+
                 
-                global_command.linear.x=0
-                global_command.linear.y=0
-                global_command.linear.z=0
+                global_command.linear.x=move_array[0]
+                global_command.linear.y=move_array[1]
+                global_command.linear.z=move_array[2]
                 global_command.angular.x=0
                 global_command.angular.y=0
                 global_command.angular.z=command
@@ -412,7 +446,8 @@ def moveto_body():
                 global_command.angular.x=0
                 global_command.angular.y=0
                 global_command.angular.z=0
-                pub_commands.publish(global_command)
+                error_integral=np.array([0.,0.,0.])
+                # pub_commands.publish(global_command)
 
 
     else:

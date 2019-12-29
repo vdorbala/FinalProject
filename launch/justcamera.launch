@@ -1,0 +1,7 @@
+<launch>
+
+	<node name="front_camera" pkg ="dqmc" type="ros-capture.py"/>
+
+	<include file ="$(find duo3d_driver)/launch/duo3d_camera.launch"/>
+
+</launch>
